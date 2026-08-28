@@ -123,7 +123,7 @@ test('the Contacts preset is the very object the military styles apply', () => {
   assert.equal(MILITARY_PRESET.mode, 'DENSE');
   assert.equal(MILITARY_PRESET.densityPct, 75);
   const styles = uiSource.match(/detection: MILITARY_DETECTION_PRESET,/g) || [];
-  assert.equal(styles.length, 3, 'retro, surveillance and thermal all share the one preset object');
+  assert.equal(styles.length, 2, 'surveillance and thermal share the one preset object');
   assert.doesNotMatch(
     uiSource,
     /detection: \{ mode: 'dense'/,

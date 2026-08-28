@@ -30,12 +30,6 @@ import fs from 'node:fs';
 
 import { KEYHOLE_OUTER_RADIUS, KEYHOLE_OUTSIDE_OPACITY_DEFAULT, KEYHOLE_LABEL_FEATHER_RATIO } from './celestialRing.js';
 import { AIRCRAFT_BRACKET_FLOOR_ANCHOR } from './data/detectionPolicy.js';
-import {
-  SCOPE_FEATHER_RATIO_DEFAULT,
-  getScopeMaskFeather,
-  scopeMaskGeometry,
-  setScopeMaskFeather,
-} from './scopeMask.js';
 import { ShareLinkManager } from './sharelink.js';
 
 const uiSource = fs.readFileSync(new URL('./ui.js', import.meta.url), 'utf8');
@@ -71,78 +65,6 @@ function managerForHash(hash) {
 // 2. Scope feather — a subtle soft edge on a first run
 // ---------------------------------------------------------------------------
 
-test('first run opens with a subtle scope feather, at every surface that decides it', () => {
-  assert.equal(SCOPE_FEATHER_RATIO_DEFAULT, 0.11,
-    'final value 2026-08-24, superseding the 08-22 hard-crop and 08-23 8% rulings');
-  assert.equal(getScopeMaskFeather(), 0.11,
-    'and the live module starts there, not merely documents it');
-
-  // The slider and its readout are the same default rendered as markup — a
-  // fresh boot applies no restore, so a stale value here would show one number
-  // over a mask drawn at another.
-  assert.match(indexHtml, /id="scope-feather-slider"[^>]*\svalue="11"/,
-    'index.html: the feather slider ships at 11');
-  assert.match(indexHtml, /id="scope-feather-value"[^>]*>11%</,
-    'index.html: and its readout agrees with the handle');
-
-  // The link this session generates must describe the mask this session draws,
-  // for the window before the first _syncShareState.
-  assert.match(shareSource, /this\._scopeFeatherPct = 11;/,
-    'sharelink.js: the generator starts from the same value the mask starts at');
-});
-
-test('an explicit feather still wins over the subtle default', () => {
-  // A link is authored state. The new default governs a session that said
-  // nothing; it must never overwrite one that said something.
-  assert.equal(managerForHash('#lat=10&lon=20&scf=35').parseInitialHash().scopeFeatherPct, 35);
-  assert.equal(managerForHash('#lat=10&lon=20&scf=64').parseInitialHash().scopeFeatherPct, 64);
-  assert.equal(managerForHash('#lat=10&lon=20&scf=0').parseInitialHash().scopeFeatherPct, 0,
-    'an explicit 0 is a choice too, not an absent field');
-
-  // A link from before `scf` existed still restores what ITS author saw, which
-  // is the retired 35 — parsing an archive is not the same question as booting
-  // fresh, and this deliberately did NOT move with either later default.
-  assert.equal(managerForHash('#lat=10&lon=20&style=normal').parseInitialHash().scopeFeatherPct, 35,
-    'a pre-scf link restores the author\'s view, not the new default');
-});
-
-test('the subtle default did not weaken the feather control, and 0 is still reachable', () => {
-  // The cheap way to move a default would be to nerf the control. Prove the
-  // slider still spans its full range and the geometry is still DERIVED from
-  // the ratio — a check that would pass vacuously if it only ever saw one value.
-  assert.match(indexHtml, /id="scope-feather-slider"[^>]*\smin="0"[^>]*\smax="100"/,
-    'the slider still offers the whole range');
-  const previous = getScopeMaskFeather();
-  try {
-    for (const ratio of [0.35, 0.7, 1]) {
-      setScopeMaskFeather(ratio);
-      const geo = scopeMaskGeometry(1200, 900);
-      const keyholeR = 900 * 0.5 * KEYHOLE_OUTER_RADIUS;
-      assert.ok(Math.abs((geo.outerR - geo.innerR) - keyholeR * ratio) < 1e-9,
-        `feather ${ratio} must still widen the band to that fraction of the keyhole`);
-    }
-    // The new default is a real, narrow band — not the hard crop, and nowhere
-    // near the retired 35 % halo.
-    setScopeMaskFeather(SCOPE_FEATHER_RATIO_DEFAULT);
-    const soft = scopeMaskGeometry(1200, 900);
-    const keyholeR = 900 * 0.5 * KEYHOLE_OUTER_RADIUS;
-    assert.ok(Math.abs((soft.outerR - soft.innerR) - keyholeR * SCOPE_FEATHER_RATIO_DEFAULT) < 1e-9,
-      'the default really draws its own band, derived from the ratio');
-    assert.ok(soft.outerR > soft.innerR, 'and it is a band, not a hard edge');
-    // The hard crop the previous default shipped is still one drag away.
-    setScopeMaskFeather(0);
-    const hard = scopeMaskGeometry(1200, 900);
-    assert.equal(hard.outerR, hard.innerR,
-      'an explicit 0 is still the hard crop — the path was not removed with the default');
-  } finally {
-    setScopeMaskFeather(previous);
-  }
-});
-
-// ---------------------------------------------------------------------------
-// 2c. Detection Fade — 7% on a first run, at every surface that decides it
-// (final value 2026-08-24; 16% before). Fade is the label/card fading
-// band around the keyhole — a different control from the scope-mask feather.
 test('first run opens at 7% detection fade, at every surface that decides it', () => {
   assert.equal(KEYHOLE_LABEL_FEATHER_RATIO, 0.07,
     'celestialRing.js: the engine fade band opens at 7%');
@@ -250,7 +172,7 @@ test('detection-on-by-default is a default, not an operator override', () => {
   // Style-switch semantics are unchanged: Normal is still not a preset owner,
   // so switching TO Normal does not re-apply or clear anything.
   const stylePresets = uiBlock('const STYLE_PRESET_DEFAULTS = {', '\n};');
-  for (const style of ['retro', 'surveillance', 'thermal']) {
+  for (const style of ['surveillance', 'thermal']) {
     assert.match(stylePresets, new RegExp(`\\n  ${style}: \\{`),
       `${style} still carries its own preset`);
   }

@@ -1,10 +1,8 @@
-export const COCKPIT_VISION_MODES = Object.freeze(['optical', 'crt', 'nvg', 'thermal', 'noir']);
+export const COCKPIT_VISION_MODES = Object.freeze(['optical', 'nvg', 'thermal']);
 
 const TARGET_STYLE_BY_MODE = Object.freeze({
-  crt: 'retro',
   nvg: 'surveillance',
   thermal: 'thermal',
-  noir: 'noir',
 });
 
 /** Normalize a requested Cockpit vision mode to the inherited preset entry. */

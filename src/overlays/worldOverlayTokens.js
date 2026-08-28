@@ -101,24 +101,7 @@ export const SKY_PLATE_SCALE = 0.22;
  * rather than a neutral box dropped on top of the sensor image.
  */
 export const DETECTION_THEME_MAP = Object.freeze({
-  retro: {
-    line: 'rgba(255, 176, 56, 0.88)',
-    label: 'rgba(255, 216, 128, 0.95)',
-    labelBg: 'rgba(30, 12, 0, 0.72)',
-    calloutPlate: 'rgba(30, 12, 0, 0.48)',
-    calloutPlateSpace: 'rgba(30, 12, 0, 0.56)',
-    glow: 'rgba(255, 176, 56, 0.45)',
-    dim: 'rgba(230, 190, 140, 0.62)',
-    cardBorder: 'rgba(255, 210, 150, 0.16)',
-    blend: 'screen',
-    filter: 'contrast(1.08) saturate(1.04)',
-    scanline: 0.085,
-    tiers: {
-      civil: '#ffd27a', military: '#ff8a3c', sea: '#ffc06a', space: '#ffe0a0', vehicle: '#d0a060',
-      veh_jam: '#ff3b30', veh_slow: '#ffb300', veh_free: '#00ff66', veh_nodata: '#c9c9c9',
-    },
-  },
-  surveillance: {
+surveillance: {
     line: 'rgba(120, 255, 130, 0.9)',
     label: 'rgba(225, 255, 210, 0.97)',
     labelBg: 'rgba(6, 16, 6, 0.78)',

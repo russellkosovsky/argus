@@ -440,11 +440,10 @@ test('detection lifecycle re-hosts unchanged painters behind the sole host liste
     // These are the exact engine calls made by military style presets after
     // their production UI gate chooses CRT/NVG/FLIR defaults.
     const expectedThemes = {
-      retro: 'contrast(1.08) saturate(1.04) drop-shadow(0 0 3px rgba(255, 176, 56, 0.45))',
       surveillance: 'contrast(1.12) saturate(1.12) drop-shadow(0 0 3px rgba(120, 255, 120, 0.42))',
       thermal: 'contrast(1.1) saturate(1.08) drop-shadow(0 0 3px rgba(255, 224, 170, 0.42))',
     };
-    for (const style of ['retro', 'surveillance', 'thermal']) {
+    for (const style of ['surveillance', 'thermal']) {
       setMode('OFF');
       setDetectionStyle(style);
       assert.equal(surface.style.mixBlendMode, 'screen');
@@ -541,7 +540,7 @@ test('every style paints its OWN plate token through the production callout path
     settleFrame(env);
     settleFrame(env);
 
-    for (const style of ['surveillance', 'retro', 'thermal', 'normal']) {
+    for (const style of ['surveillance', 'thermal', 'normal']) {
       setDetectionStyle(style);
       settleFrame(env);
       env.ctx.calls.length = 0;
@@ -699,15 +698,15 @@ test('detection cannot resurrect a private canvas, listener, matrix, resize, cle
   );
   assert.equal(
     uiSource.match(/detection: MILITARY_DETECTION_PRESET,/g)?.length,
-    3,
-    'CRT, NVG, and FLIR retain their Dense auto-enable defaults',
+    2,
+    'NVG and FLIR retain their Dense auto-enable defaults',
   );
   assert.match(uiSource, /preset\.detection && !this\._detectionUserOverridden/);
 });
 
 // ── Developer telemetry gate (2026-08-20 QA hunt) ───────────────────────────
 // The orange mode banner ("DENSE  VIS:15  SRC:1036  DENS:100%  ELASTIC  0.4ms")
-// painted for every user: CRT/NVG/FLIR auto-enable detection, so engine
+// painted for every user: NVG/FLIR auto-enable detection, so engine
 // telemetry was the first thing a visitor saw, overlapping the cockpit callsign
 // block. It is kept as a debug affordance, but must default OFF.
 test('detectionDebugRequested parses the query-string gate and nothing else', () => {

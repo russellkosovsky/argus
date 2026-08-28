@@ -10,8 +10,8 @@ export const GLOBE_EXIT_CLEARANCE_PX = 12;
 /** Minimum stable length of a celestial direction projected into the camera plane. */
 export const CELESTIAL_PLANE_EPSILON = 0.045;
 /** Responsive radial fade band used by every keyhole-aligned text overlay —
- * this is the Detection FADE (label/card fading), NOT the scope-mask feather
- * in scopeMask.js. 0.07 since the 2026-08-24 final value (was 0.16). */
+ * this is the Detection FADE (label/card fading).
+ * 0.07 since the 2026-08-24 final value (was 0.16). */
 export const KEYHOLE_LABEL_FEATHER_RATIO = 0.07;
 export const KEYHOLE_LABEL_FEATHER_MAX_RATIO = 0.4;
 /**
@@ -368,9 +368,10 @@ export class CelestialRing {
     // Pre-existing staleness fix (perf wave 2 review): the ephemeris was
     // sampled once per visible-enable from the FROZEN app clock, so the
     // sun/moon markers aged with the app. Resample real wall time each
-    // minute and request the one frame that repaints the ring.
-    this._ephemerisTimer = setInterval(() => {
-      if (!this.enabled) return;
+    // minute and request the one frame that repaints the ring. The timer
+    // runs only while the ring is enabled (started/stopped in setEnabled) —
+    // the ring defaults off, so an unused ring costs no wakeups.
+    this._ephemerisTick = () => {
       // Always mark dirty so a long-hidden interval can't serve stale
       // sun/moon vectors on return — but only request the repaint frame
       // while visible; the visibility-restore request (main.js) picks the
@@ -378,7 +379,7 @@ export class CelestialRing {
       this._ephemerisDirty = true;
       if (typeof document !== 'undefined' && document.hidden) return;
       governorRequestRender('celestial-ephemeris');
-    }, 60_000);
+    };
     this.setEnabled(this.enabled);
   }
 
@@ -422,7 +423,17 @@ export class CelestialRing {
   setEnabled(enabled) {
     const wasEnabled = this.enabled;
     this.enabled = !!enabled;
-    if (this.enabled && !wasEnabled) this._ephemerisDirty = true;
+    if (this.enabled && !wasEnabled) {
+      this._ephemerisDirty = true;
+      if (!this._ephemerisTimer) {
+        this._ephemerisTimer = setInterval(this._ephemerisTick, 60_000);
+        this._ephemerisTimer?.unref?.();
+      }
+    }
+    if (!this.enabled && this._ephemerisTimer) {
+      clearInterval(this._ephemerisTimer);
+      this._ephemerisTimer = null;
+    }
     // The ring paints its canvases from postRender, which only fires on
     // rendered frames — under the idle render governor an enable (or the
     // clearing disable) must request its frame or the ring never draws at

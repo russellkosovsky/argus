@@ -4,7 +4,6 @@ import {
   migrateDetectionState,
   normalizeAllocationStrategy,
 } from './data/detectionPolicy.js';
-import { clampScopeTerminusPct } from './scopeMask.js';
 import { decodeLayerStateParams, encodeLayerStateParams } from './data/layerState.js';
 
 /**
@@ -20,12 +19,8 @@ const LEGACY_BLOOM_FALLBACK = 50;
 // Style name mapping: internal → URL-friendly
 const STYLE_TO_URL = {
   normal: 'normal',
-  retro: 'crt',
   surveillance: 'nvg',
   thermal: 'flir',
-  anime: 'anime',
-  noir: 'noir',
-  snow: 'snow',
 };
 
 const SHARE_UI_STATE_PARAM = 'ui';
@@ -52,11 +47,6 @@ const URL_TO_STYLE = Object.fromEntries(
 );
 
 const SHARE_STYLE_PARAM_REGISTRY = Object.freeze({
-  retro: Object.freeze([
-    { key: 'pixelation', token: 'p', min: 1, max: 10 },
-    { key: 'distortion', token: 'd', min: 0, max: 1 },
-    { key: 'instability', token: 'i', min: 0, max: 1 },
-  ]),
   surveillance: Object.freeze([
     { key: 'gain', token: 'g', min: 0, max: 1 },
     { key: 'bloom', token: 'b', min: 0, max: 1 },
@@ -69,19 +59,6 @@ const SHARE_STYLE_PARAM_REGISTRY = Object.freeze({
     { key: 'mode', token: 'm', min: 0, max: 1 },
     { key: 'pixelation', token: 'p', min: 1, max: 6 },
     { key: 'palette', token: 'a', min: 0, max: 1 },
-  ]),
-  anime: Object.freeze([
-    { key: 'saturation', token: 's', min: 0, max: 2 },
-    { key: 'edgeThick', token: 'e', min: 0, max: 1 },
-  ]),
-  noir: Object.freeze([
-    { key: 'contrastAmt', token: 'c', min: 0, max: 2 },
-    { key: 'grainAmt', token: 'g', min: 0, max: 1 },
-    { key: 'vignetteAmt', token: 'v', min: 0, max: 1 },
-  ]),
-  snow: Object.freeze([
-    { key: 'density', token: 'd', min: 0, max: 1 },
-    { key: 'wind', token: 'w', min: 0, max: 1 },
   ]),
 });
 
@@ -113,14 +90,6 @@ export class ShareLinkManager {
     // question and deliberately stays at 5.
     this._detectionOutsideOpacityPct = 1;
     this._celestialRingEnabled = false;
-    this._scopeEnabled = true;
-    // Feather opens on a soft 11% scope-mask edge (final value 2026-08-24,
-    // superseding the 08-22 hard-crop and 08-23 8% rulings) — mirrors
-    // SCOPE_FEATHER_RATIO_DEFAULT in scopeMask.js and the slider's markup value.
-    this._scopeFeatherPct = 11;
-    // null = the altitude-adaptive terminus (the default). A number pins the
-    // outside-fill opacity as a percent, 94..100. (`sce`, 2026-08-17)
-    this._scopeTerminusPct = null;
     this._mapStack = 'photoreal';
     this._layerStateProvider = null;
     this._panelStateProvider = null;
@@ -204,25 +173,6 @@ export class ShareLinkManager {
       // celestialRing.js.
       detectionOutsideOpacityPct: Math.max(0, Math.min(100, Math.round(parseOr(params.get('ko'), 5)))),
       celestialRing: params.has('cr') ? params.get('cr') === '1' : false,
-      scopeEnabled: params.has('sc') ? params.get('sc') === '1' : true,
-      // Deliberately still 35 through both later default moves (0 on
-      // 2026-08-22, 8 on 2026-08-23). This is the PARSE fallback for a link that
-      // predates `scf` entirely, and such a link was authored when 35 was what
-      // its author saw — restoring their view is the point of a share link. A
-      // link from the feather-0 era is unaffected either way: it carries
-      // `scf=0` explicitly, because the generator always writes the field. The
-      // first-run default is a different question, answered in scopeMask.js.
-      // (`_scopeFeatherPct` in the constructor tracks the default: that one
-      // mirrors live state for the link this session generates, so it must match
-      // the mask, not the archive.)
-      scopeFeatherPct: Math.max(0, Math.min(100, Math.round(parseOr(params.get('scf'), 35)))),
-      // Absent (or non-numeric) `sce` = adaptive (null), the default behavior;
-      // a value pins the terminus opacity percent, clamped into the SUPPORTED
-      // 94..100 band. `sce=0` used to survive as a sub-94 terminus — a hole in
-      // the mask — and then got written straight back out on the next update.
-      scopeTerminusPct: params.has('sce')
-        ? clampScopeTerminusPct(params.get('sce'))
-        : null,
       mapStack: params.get('map') || 'photoreal',
       layerState: decodedLayerState,
       layerStateInvalid: params.get('v') === '2'
@@ -320,9 +270,6 @@ export class ShareLinkManager {
         detectionFadePct: visualCurrent ? state.detectionFadePct : undefined,
         detectionOutsideOpacityPct: visualCurrent ? state.detectionOutsideOpacityPct : undefined,
         celestialRing: visualCurrent ? state.celestialRing : undefined,
-        scopeEnabled: visualCurrent ? state.scopeEnabled : undefined,
-        scopeFeatherPct: visualCurrent ? state.scopeFeatherPct : undefined,
-        scopeTerminusPct: visualCurrent ? state.scopeTerminusPct : undefined,
         mapStack: mapCurrent ? state.mapStack : undefined,
         panelState,
         styleParams: visualCurrent ? state.styleParams : undefined,
@@ -429,14 +376,6 @@ export class ShareLinkManager {
       );
     }
     if (typeof extras.celestialRingEnabled === 'boolean') this._celestialRingEnabled = extras.celestialRingEnabled;
-    if (typeof extras.scopeEnabled === 'boolean') this._scopeEnabled = extras.scopeEnabled;
-    if (typeof extras.scopeFeatherPct === 'number') {
-      this._scopeFeatherPct = Math.max(0, Math.min(100, Math.round(extras.scopeFeatherPct)));
-    }
-    if (extras.scopeTerminusPct === null) this._scopeTerminusPct = null;
-    else if (typeof extras.scopeTerminusPct === 'number') {
-      this._scopeTerminusPct = clampScopeTerminusPct(extras.scopeTerminusPct);
-    }
     if (typeof extras.mapStack === 'string') this._mapStack = extras.mapStack;
     this._scheduleUpdate();
   }
@@ -498,14 +437,6 @@ export class ShareLinkManager {
     params.set('kf', Math.round(this._detectionFadePct).toString());
     params.set('ko', Math.round(this._detectionOutsideOpacityPct).toString());
     params.set('cr', this._celestialRingEnabled ? '1' : '0');
-    params.set('sc', this._scopeEnabled ? '1' : '0');
-    params.set('scf', Math.round(this._scopeFeatherPct).toString());
-    // Only written when pinned — an absent `sce` IS the adaptive default, so a
-    // shared link never freezes the ramp for the recipient by accident. The
-    // same 94..100 clamp applies on the way OUT, so a link can never carry an
-    // unsupported terminus even if the field was set from somewhere else.
-    const terminusPct = clampScopeTerminusPct(this._scopeTerminusPct);
-    if (terminusPct != null) params.set('sce', String(terminusPct));
     params.set('map', this._mapStack);
     const layerState = this._layerStateProvider?.();
     if (layerState) encodeLayerStateParams(params, layerState);

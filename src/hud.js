@@ -1,14 +1,14 @@
 /**
  * @module hud
- * @description Intelligence HUD Overlay — NRO/NGA Satellite Aesthetic.
+ * @description Telemetry HUD overlay.
  *
- * Renders authentic reconnaissance metadata over the Cesium canvas:
- * classification banners, live MGRS/lat-lon coordinates, sensor metrics
- * (GSD, NIIRS, ONA), timestamps, and orbital data — all updating in
- * real-time at configurable cadences.
+ * Renders live camera-derived readouts over the Cesium canvas: MGRS and
+ * lat/lon coordinates, sensor metrics (GSD, NIIRS, ONA), a UTC clock, sun
+ * elevation, and a semantic summary line — all real values, updating on
+ * independent cadences.
  *
- * The HUD auto-activates when a military-style shader (NVG, FLIR, CRT) is
- * selected and supports three layout variants: tactical, operator, minimal.
+ * The HUD auto-activates when a sensor-style shader (NVG, FLIR) is selected
+ * and supports three layout variants: tactical, operator, minimal.
  *
  * Color theming is driven by the active shader mode via CSS custom properties.
  */
@@ -23,12 +23,11 @@ import { ellipsoidalToMslDisplayM, ensureGeoidReady, geoidHeight } from './data/
 const HUD_COLORS = {
   surveillance: { main: 'rgba(51, 255, 51, 0.8)',  glow: 'rgba(51, 255, 51, 0.5)',  border: 'rgba(51, 255, 51, 0.2)' },
   thermal:      { main: 'rgba(255, 255, 255, 0.7)', glow: 'rgba(255, 255, 255, 0.4)', border: 'rgba(255, 255, 255, 0.15)' },
-  retro:        { main: 'rgba(255, 170, 0, 0.8)',   glow: 'rgba(255, 170, 0, 0.5)',   border: 'rgba(255, 170, 0, 0.2)' },
   _default:     { main: 'rgba(0, 255, 255, 0.6)',   glow: 'rgba(0, 255, 255, 0.4)',   border: 'rgba(0, 255, 255, 0.15)' },
 };
 
 /** Shader modes that automatically show the HUD overlay. */
-const MILITARY_STYLES = new Set(['retro', 'surveillance', 'thermal']);
+const MILITARY_STYLES = new Set(['surveillance', 'thermal']);
 
 /** Allowed HUD layout variants. */
 const HUD_VARIANTS = new Set(['tactical', 'operator', 'minimal']);
@@ -53,10 +52,10 @@ const NEARBY_POINTS = Object.values(CITY_POIS)
 /**
  * Full-screen intelligence HUD overlay rendered on top of the Cesium canvas.
  *
- * Displays classification banners, MGRS/lat-lon readouts, sensor metrics
- * (GSD, NIIRS, off-nadir angle), sun elevation, orbital metadata, and a
- * rolling semantic summary line. All values derive from the live camera
- * position and update on independent timer cadences.
+ * Displays MGRS/lat-lon readouts, sensor metrics (GSD, NIIRS, off-nadir
+ * angle), sun elevation, a UTC clock, and a rolling semantic summary line.
+ * All values derive from the live camera position and update on independent
+ * timer cadences.
  */
 export class IntelHUD {
   /**
@@ -70,9 +69,7 @@ export class IntelHUD {
     this._currentStyle = 'normal';
     this._el = null;
     this._variant = 'tactical';
-    this._recBlinkState = true;
     this._updateInterval = null;
-    this._recBlinkInterval = null;
     this._timestampInterval = null;
     this._summaryInterval = null;
     this._summaryTypingInterval = null;
@@ -109,12 +106,6 @@ export class IntelHUD {
       }
     };
 
-    // Session-consistent pseudorandom identifiers (generated once at construction)
-    this._missionId = `KH11-${4000 + Math.floor(Math.random() * 200)}`;
-    this._sensorId = `OPS-${4100 + Math.floor(Math.random() * 100)}`;
-    this._orbitNum = 47000 + Math.floor(Math.random() * 1000);
-    this._passNum = 100 + Math.floor(Math.random() * 200);
-
     this._buildDOM();
     this.viewer.camera.moveEnd.addEventListener(this._onCameraMoveEnd);
     this._startTimers();
@@ -122,25 +113,16 @@ export class IntelHUD {
 
   /**
    * Construct the HUD DOM structure inside the existing `#intel-hud` element.
-   * Populates corner brackets, classification banners, sensor readouts,
-   * edge metadata strips, and the bottom summary bar.
+   * Populates corner brackets, live readouts, and the bottom summary bar.
    */
   _buildDOM() {
     this._el = document.getElementById('intel-hud');
     if (!this._el) return;
 
     this._el.innerHTML = `
-      <div class="hud-top-bar">
-        <span class="hud-top-bar-left">TOP SECRET // SI-TK // NOFORN</span>
-        <span class="hud-top-bar-center">${this._missionId}</span>
-        <span class="hud-top-bar-right">PAGE 1/1</span>
-      </div>
-
       <div class="hud-corner hud-top-left">
         <div class="hud-bracket">┌</div>
         <div class="hud-content">
-          <div class="hud-classification">TOP SECRET // SI-TK // NOFORN</div>
-          <div class="hud-system">${this._missionId}  ${this._sensorId}</div>
           <div class="hud-mode" id="hud-mode">NORMAL</div>
           <div class="hud-summary-wrap">
             <div class="hud-summary-label">SUMMARY</div>
@@ -151,8 +133,7 @@ export class IntelHUD {
 
       <div class="hud-corner hud-top-right">
         <div class="hud-content" style="text-align:right">
-          <div class="hud-rec"><span id="hud-rec-dot">●</span> REC  <span id="hud-timestamp">2026-01-01 00:00:00Z</span></div>
-          <div class="hud-orbital">ORB: ${this._orbitNum}  PASS: DESC-${this._passNum}</div>
+          <div class="hud-utc">UTC <span id="hud-timestamp">--</span></div>
         </div>
         <div class="hud-bracket">┐</div>
       </div>
@@ -175,14 +156,7 @@ export class IntelHUD {
       </div>
 
       <div class="hud-edge hud-left-edge">
-        <div id="hud-coll">COLL: --:--:--Z</div>
         <div id="hud-ona">ONA: --°</div>
-      </div>
-
-      <div class="hud-edge hud-right-edge">
-        <div>BAND: PAN</div>
-        <div>BITS: 11</div>
-        <div>LVL: 1A</div>
       </div>
 
       <div class="hud-bottom-bar">
@@ -193,23 +167,16 @@ export class IntelHUD {
   }
 
   /**
-   * Start all periodic update timers (timestamp, REC blink, camera
-   * telemetry, semantic summary). Timers run independently at different
-   * cadences and are cleaned up in {@link destroy}.
+   * Start all periodic update timers (UTC clock, camera telemetry, semantic
+   * summary). Every timer early-outs while the HUD is hidden, so a hidden
+   * HUD costs nothing per tick; timers are cleaned up in {@link destroy}.
    */
   _startTimers() {
-    // Timestamp — every second
+    // UTC clock — every second, visible HUD only (show() repaints on reveal)
     this._timestampInterval = setInterval(() => {
-      const el = document.getElementById('hud-timestamp');
-      if (el) el.textContent = this._formatUTC();
+      if (!this._visible) return;
+      this._paintTimestamp();
     }, 1000);
-
-    // REC blink — every 800ms
-    this._recBlinkInterval = setInterval(() => {
-      this._recBlinkState = !this._recBlinkState;
-      const dot = document.getElementById('hud-rec-dot');
-      if (dot) dot.style.visibility = this._recBlinkState ? 'visible' : 'hidden';
-    }, 800);
 
     // Camera-derived data — 4 updates/second (250ms)
     this._updateInterval = setInterval(() => {
@@ -222,6 +189,12 @@ export class IntelHUD {
       if (!this._visible) return;
       this._updateSummary(true);
     }, HUD_SUMMARY_INTERVAL_MS);
+  }
+
+  /** Paint the UTC clock readout. */
+  _paintTimestamp() {
+    const el = document.getElementById('hud-timestamp');
+    if (el) el.textContent = this._formatUTC();
   }
 
   /**
@@ -326,16 +299,6 @@ export class IntelHUD {
     const altMslM = ellipsoidalToMslDisplayM(altM, geoidN);
     const sunEl = this._estimateSunElevation(latDeg, lonDeg);
     if (altEl) altEl.textContent = `ALT: ${Math.round(altMslM)}m   SUN: ${sunEl.toFixed(1)}° EL`;
-
-    // Collection timestamp
-    const collEl = document.getElementById('hud-coll');
-    if (collEl) {
-      const now = new Date();
-      const h = String(now.getUTCHours()).padStart(2, '0');
-      const m = String(now.getUTCMinutes()).padStart(2, '0');
-      const s = String(now.getUTCSeconds()).padStart(2, '0');
-      collEl.textContent = `COLL: ${h}:${m}:${s}Z`;
-    }
 
     // Off-nadir angle (ONA): camera pitch of -90 deg is nadir (straight down),
     // so ONA = 90 + pitch gives 0 at nadir and increases toward the horizon.
@@ -637,7 +600,7 @@ export class IntelHUD {
     // Update mode label
     const modeEl = document.getElementById('hud-mode');
     if (modeEl) {
-      const modeNames = { surveillance: 'NVG', thermal: 'FLIR', retro: 'CRT' };
+      const modeNames = { surveillance: 'NVG', thermal: 'FLIR' };
       modeEl.textContent = modeNames[styleName] || styleName.toUpperCase();
     }
     // Update color scheme
@@ -662,6 +625,7 @@ export class IntelHUD {
   show() {
     this._visible = true;
     if (this._el) this._el.classList.add('active');
+    this._paintTimestamp();
     this._updateCameraData(); // immediate update
     this._markSummaryDirty();
     this._updateSummary(false, true);
@@ -752,7 +716,6 @@ export class IntelHUD {
   /** Tear down all running intervals. Call when discarding the HUD instance. */
   destroy() {
     clearInterval(this._updateInterval);
-    clearInterval(this._recBlinkInterval);
     clearInterval(this._timestampInterval);
     clearInterval(this._summaryInterval);
     clearInterval(this._summaryTypingInterval);

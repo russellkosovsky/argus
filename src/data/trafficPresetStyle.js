@@ -14,13 +14,11 @@
  * dots" — a luminance RAMP failed in the field because dim free-flow dots
  * read as dark holes on NVG-bright roads; classification is the detection
  * brackets' job via `trafficBucketTier`, presence is the dots' job):
- *  - `mono` (surveillance/NVG, thermal/FLIR, noir): every colored dot is a
+ *  - `mono` (surveillance/NVG, thermal/FLIR): every colored dot is a
  *    bright white core with a thin black halo (local contrast survives any
  *    luma mapping, including Ironbow where white stays the hottest end);
  *    jam keeps a size bump so queues read as fat beads.
- *  - `crt` (retro): saturated primaries that survive 10-level posterization
- *    plus an all-bucket size boost to out-shout the pixel grid.
- *  - `normal` (normal/anime/snow/unknown): every lookup returns null/0 —
+ *  - `normal` (normal/unknown): every lookup returns null/0 —
  *    the shipped palette and sizing apply untouched.
  *
  * Sim/uncovered dots (bucket null/'sim') are NEVER restyled under any
@@ -33,12 +31,10 @@
  * @module data/trafficPresetStyle
  */
 
-/** @const {Object<string,'mono'|'crt'>} Style name → non-normal profile. */
+/** @const {Object<string,'mono'>} Style name → non-normal profile. */
 const PROFILE_BY_STYLE = {
   surveillance: 'mono', // NVG — P43 phosphor × luma
   thermal: 'mono',      // FLIR — grayscale/ironbow × luma
-  noir: 'mono',         // full desaturation
-  retro: 'crt',         // CRT — hue survives, small dots don't
 };
 
 /**
@@ -53,17 +49,12 @@ const DOT_STYLE = {
     slow: { rgba: [255, 255, 255, 0.9], sizeDelta: 1, outline: { rgba: [0, 0, 0, 0.85], width: 1 } },
     free: { rgba: [255, 255, 255, 0.85], sizeDelta: 0, outline: { rgba: [0, 0, 0, 0.8], width: 1 } },
   },
-  crt: {
-    jam: { rgba: [255, 59, 48, 0.95], sizeDelta: 3, outline: { rgba: [0, 0, 0, 0.9], width: 2 } },
-    slow: { rgba: [255, 179, 0, 0.92], sizeDelta: 2, outline: { rgba: [0, 0, 0, 0.85], width: 1 } },
-    free: { rgba: [0, 255, 102, 0.9], sizeDelta: 1, outline: null },
-  },
 };
 
 /**
  * Classify a StyleManager preset name into a traffic styling profile.
  * @param {string|null|undefined} styleName - Active style (e.g. 'surveillance').
- * @returns {'normal'|'mono'|'crt'} Styling profile; unknown → 'normal'.
+ * @returns {'normal'|'mono'} Styling profile; unknown → 'normal'.
  */
 export function trafficStyleProfile(styleName) {
   return PROFILE_BY_STYLE[styleName] || 'normal';

@@ -19,12 +19,11 @@ The live layers are grounded in public feeds: an aircraft on screen is reporting
 - **Cockpit view**: ride inside a tracked flight with terrain held under the aircraft, a briefing strip (nearby signals, regional headlines, local weather), and an opt-in volumetric cloud mode driven by real observations.
 - **Contacts roster**: a 250 km roster of everything near the tracked target; step through live aircraft and enter any cockpit.
 - **3D aircraft models**: per-class models (787, ATR-72, Citation, Bell 206, MQ-9); a tracked contact swaps from glyph to model as the camera closes in.
-- **Display filters**: GLSL post-processing modes over the globe — CRT, night-vision, thermal, noir, snow — switchable with keys `1`–`7`.
+- **Sensor modes**: GLSL post-processing over the globe — night-vision and thermal — switchable with keys `1`–`3`.
 - **Detection overlay**: screen-space bounding boxes and identifiers on objects in view, with adjustable density.
-- **Intelligence HUD**: full-screen telemetry overlay (MGRS, sensor metrics, sun angle, semantic summary line) in three layout variants.
+- **Telemetry HUD**: full-screen overlay of real camera-derived readouts (MGRS, GSD, off-nadir angle, sun elevation, UTC, semantic summary) in three layout variants.
 - **Track history**: select a military contact and its last ~24 h of real trace history resolves as stacked 3D loops.
 - **Global context**: stage a full situational picture with one control and return to the exact prior view on exit.
-- **Scene director**: deterministic scripted camera tours for captures and demos.
 - **Share links**: camera, style, layers, and one tracked target serialize into a URL; a live target link is a handoff, not a bookmark.
 - **Map stack**: Google Photorealistic 3D, Bing aerial (via Cesium ion), and OSM, switchable at runtime.
 
@@ -66,11 +65,11 @@ npm install
 npm run dev -- --host localhost --port 4173
 ```
 
-3. Open `http://localhost:4173`. A first-run card offers to stage a starting configuration (live contacts, space missions, or environmental layers) or leaves you to explore manually.
+3. Open `http://localhost:4173` and enable layers from the left panel.
 
 The dev server binds to localhost by default, so API keys stay on your machine. On macOS, `./scripts/dev-fresh.sh` clears the Vite cache and pulls keys from the Keychain (service names are documented in `.env.example`).
 
-Keyboard: `1`–`7` display filters · `H` HUD · `D` detection overlay · `C` cockpit · `Esc` exit.
+Keyboard: `1`–`3` sensor modes · `H` HUD · `D` detection overlay · `C` cockpit · `Esc` exit.
 
 ### A short tour
 

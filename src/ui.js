@@ -1,8 +1,4 @@
 import * as Cesium from 'cesium';
-import { retroShader } from './styles/retro.js';
-import { animeShader } from './styles/anime.js';
-import { noirShader } from './styles/noir.js';
-import { snowShader } from './styles/snow.js';
 import { nightVisionShader } from './styles/surveillance.js';
 import { thermalShader } from './styles/thermal.js';
 import {
@@ -158,15 +154,6 @@ import {
 import { sampleMeshFloorCells } from './data/meshFloorSampler.js';
 import { holdContinuousRender, releaseContinuousRender, governorRequestRender } from './renderGovernor.js';
 import {
-  setScopeMaskEnabled,
-  isScopeMaskEnabled,
-  setScopeMaskFeather,
-  getScopeMaskFeather,
-  setScopeTerminusOverride,
-  getScopeTerminusOverride,
-  clampScopeTerminusPct,
-} from './scopeMask.js';
-import {
   fetchRegionalBrief,
   regionalDistanceM,
   weatherCodeLabel,
@@ -197,7 +184,7 @@ import {
 /** Duration (ms) for shader intensity crossfade between style presets. */
 const TRANSITION_DURATION_MS = 500;
 /** Map of style name to its GLSL shader module for post-process stages. */
-const STYLES = { retro: retroShader, surveillance: nightVisionShader, thermal: thermalShader, anime: animeShader, noir: noirShader, snow: snowShader };
+const STYLES = { surveillance: nightVisionShader, thermal: thermalShader };
 /** Versioned localStorage namespace prefix to invalidate stale panel layouts. */
 const PANEL_LAYOUT_STORAGE_VERSION = 'v6';
 const SHARE_PANEL_STATE_SPECS = Object.freeze([
@@ -352,12 +339,8 @@ const RIGHT_STACK_OBSTACLE_SELECTOR = [
 /** Display labels shown in the mini-status readout for each active style. */
 const STYLE_STATUS_LABELS = {
   normal: 'NORMAL',
-  retro: 'CRT',
   surveillance: 'NVG',
   thermal: 'FLIR',
-  anime: 'ANIME',
-  noir: 'NOIR',
-  snow: 'SNOW',
 };
 /**
  * The tactical detection look: Dense at 75%.
@@ -406,20 +389,6 @@ const GLOBAL_POST_DEFAULTS = {
 
 // Tactical style defaults applied when users select military style presets.
 const STYLE_PRESET_DEFAULTS = {
-  retro: {
-    bloom: { enabled: false, intensity: BLOOM_INTENSITY_DEFAULT },
-    sharpen: { enabled: true, intensity: 49 },
-    styleParams: {
-      retro: {
-        pixelation: 1.0,
-        distortion: 0,
-        instability: 0.42,
-      },
-    },
-    hudVariant: 'tactical',
-    hudVisible: true,
-    detection: MILITARY_DETECTION_PRESET,
-  },
   surveillance: {
     bloom: { enabled: false, intensity: BLOOM_INTENSITY_DEFAULT },
     sharpen: { enabled: true, intensity: 49 },
@@ -488,7 +457,7 @@ const SHARPEN_SHADER = /* glsl */ `
  *
  * Responsibilities:
  * - CesiumJS PostProcessStage pipeline: registers per-style GLSL stages
- *   (NVG, FLIR, CRT, anime, noir, snow) and manages intensity crossfades.
+ *   (NVG, FLIR) and manages intensity crossfades.
  * - Bloom and sharpen post-processing toggle/intensity control.
  * - Draggable/collapsible panel system with localStorage persistence,
  *   z-order stacking, and viewport-clamped positioning.
@@ -986,8 +955,8 @@ class CockpitViewController {
     const next = normalizeCockpitVisionMode(mode);
     this.visionMode = next;
     const inherited = String(this.getInheritedVisionLabel?.() || 'NORMAL').toUpperCase();
-    const labels = { optical: inherited, crt: 'CRT', nvg: 'NVG', thermal: 'FLIR', noir: 'NOIR' };
-    const names = { optical: inherited, crt: 'CRT', nvg: 'Night vision', thermal: 'Thermal', noir: 'Noir' };
+    const labels = { optical: inherited, nvg: 'NVG', thermal: 'FLIR' };
+    const names = { optical: inherited, nvg: 'Night vision', thermal: 'Thermal' };
     if (this.visionCurrent) {
       this.visionCurrent.dataset.cockpitVision = next;
       this.visionCurrent.setAttribute('aria-label', `Current cockpit vision style: ${names[next]}. Activate for next style.`);
@@ -2243,9 +2212,6 @@ export class StyleManager {
     } catch { /* storage can be unavailable in privacy/test contexts */ }
     this._detectionAllocationPreference = normalizeAllocationStrategy(storedDetectionAllocation);
     this._celestialBtn = document.getElementById('celestial-toggle');
-    this._scopeBtn = document.getElementById('scope-toggle');
-    this._scopeFeatherSlider = document.getElementById('scope-feather-slider');
-    this._scopeFeatherValue = document.getElementById('scope-feather-value');
     this._mapStackChips = document.getElementById('map-stack-chips');
     this._mapStackStatus = document.getElementById('map-stack-status');
     this._cleanViewBtn = document.getElementById('clean-view-toggle');
@@ -2476,9 +2442,6 @@ export class StyleManager {
           detectionFadePct,
           detectionOutsideOpacityPct,
           celestialRing,
-          scopeEnabled,
-          scopeFeatherPct,
-          scopeTerminusPct,
           mapStack,
           panelState,
           styleParams,
@@ -2530,24 +2493,6 @@ export class StyleManager {
         if (detectionMode) this._setDetectionMode(detectionMode);
         if (typeof celestialRing === 'boolean') {
           this.setCelestialRingEnabled(celestialRing, { syncShare: false, focus: false });
-        }
-        if (typeof scopeEnabled === 'boolean') {
-          setScopeMaskEnabled(scopeEnabled);
-          this._scopeBtn?.classList.toggle('active', scopeEnabled);
-          this._scopeBtn?.setAttribute('aria-pressed', String(scopeEnabled));
-        }
-        if (typeof scopeFeatherPct === 'number' && this._scopeFeatherSlider) {
-          const pct = Math.max(0, Math.min(100, Math.round(scopeFeatherPct)));
-          this._scopeFeatherSlider.value = String(pct);
-          if (this._scopeFeatherValue) this._scopeFeatherValue.textContent = `${pct}%`;
-          setScopeMaskFeather(pct / 100);
-        }
-        // null restores the altitude-adaptive ramp; a number pins the terminus
-        // (clamped to the supported 94..100 band, same as the `sce` hash key).
-        if (scopeTerminusPct === null) setScopeTerminusOverride(null);
-        else if (typeof scopeTerminusPct === 'number') {
-          const pinned = clampScopeTerminusPct(scopeTerminusPct);
-          setScopeTerminusOverride(pinned == null ? null : pinned / 100);
         }
         const mapStackRestore = mapStack
           ? this._setMapStack(mapStack, { syncShare: false })
@@ -2936,7 +2881,7 @@ export class StyleManager {
     for (const [name, shader] of Object.entries(STYLES)) {
       const uniforms = { intensity: 0.0 };
 
-      // Auto-detect time uniform — animated shaders (CRT scanlines, snow, etc.)
+      // Auto-detect time uniform — animated shaders (NVG noise, etc.)
       // declare `uniform float time` and receive elapsed seconds each frame.
       if (shader.fragmentShader.includes('uniform float time')) {
         uniforms.time = 0.0;
@@ -2955,13 +2900,8 @@ export class StyleManager {
         uniforms,
       });
 
-      // Zero-intensity stages are DISABLED (perf wave 1). History: the
-      // first attempt at this deleted the product's signature scope — the
-      // circular starfield mask was an EMERGENT artifact of these six
-      // stacked "identity" passes, not an implemented feature. The owner
-      // ruled to reimplement the scope explicitly (src/scopeMask.js, a
-      // featherable zero-per-frame canvas), which frees these passes for
-      // real. If the scope ever looks wrong, look there — not here.
+      // Zero-intensity stages are DISABLED (perf wave 1) so idle styles
+      // cost nothing.
       stage.enabled = false;
       this.viewer.scene.postProcessStages.add(stage);
       this.stages[name] = stage;
@@ -3328,9 +3268,7 @@ export class StyleManager {
       if (isFormControl && e.key !== 'Escape') return;
 
       const keyMap = {
-        '1': 'normal', '2': 'retro', '3': 'surveillance',
-        '4': 'thermal', '5': 'anime', '6': 'noir',
-        '7': 'snow',
+        '1': 'normal', '2': 'surveillance', '3': 'thermal',
       };
       if (keyMap[e.key]) this.setStyle(keyMap[e.key]);
       if (e.key === 'Escape') {
@@ -3381,23 +3319,6 @@ export class StyleManager {
       this._setSharpenEnabled(!this.sharpenEnabled);
     });
 
-    // Scope mask — the explicit circular viewport treatment (owner ask:
-    // standalone toggle + featherable edge; see src/scopeMask.js).
-    this._scopeBtn?.addEventListener('click', () => {
-      this.shareLinkManager?.claimRestoreLane?.('visual');
-      const next = !isScopeMaskEnabled();
-      setScopeMaskEnabled(next);
-      this._scopeBtn.classList.toggle('active', next);
-      this._scopeBtn.setAttribute('aria-pressed', String(next));
-      this._syncShareState();
-    });
-    this._scopeFeatherSlider?.addEventListener('input', () => {
-      this.shareLinkManager?.claimRestoreLane?.('visual');
-      const pct = Math.max(0, Math.min(100, parseInt(this._scopeFeatherSlider.value, 10) || 0));
-      if (this._scopeFeatherValue) this._scopeFeatherValue.textContent = `${pct}%`;
-      setScopeMaskFeather(pct / 100);
-      this._syncShareState();
-    });
 
     if (this._sharpenSlider) {
       this._sharpenSlider.addEventListener('input', () => {
@@ -3817,12 +3738,6 @@ export class StyleManager {
       detectionFadePct: parseInt(this._detectionFadeSlider?.value || '7', 10),
       detectionOutsideOpacityPct: parseInt(this._detectionOpacitySlider?.value || '1', 10),
       celestialRingEnabled: this.celestialRingEnabled,
-      scopeEnabled: isScopeMaskEnabled(),
-      scopeFeatherPct: Math.round(getScopeMaskFeather() * 100),
-      // null when adaptive — the share layer omits `sce` entirely in that case.
-      scopeTerminusPct: getScopeTerminusOverride() == null
-        ? null
-        : Math.round(getScopeTerminusOverride() * 100),
       mapStack: this.mapStackController?.getActiveId?.() || 'photoreal',
     });
   }
@@ -8593,10 +8508,6 @@ export class StyleManager {
         fadePct: parseInt(this._detectionFadeSlider?.value || '7', 10),
         outsideOpacityPct: parseInt(this._detectionOpacitySlider?.value || '0', 10),
       },
-      scope: {
-        enabled: isScopeMaskEnabled(),
-        featherPct: Math.round(getScopeMaskFeather() * 100),
-      },
       mapStack: this.mapStackController?.getActiveId?.() || 'photoreal',
       styleParams,
     };
@@ -8658,18 +8569,6 @@ export class StyleManager {
       this._updateHudButtonState();
     }
 
-    const scopeState = state.scope || {};
-    if (typeof scopeState.enabled === 'boolean') {
-      setScopeMaskEnabled(scopeState.enabled);
-      this._scopeBtn?.classList.toggle('active', scopeState.enabled);
-      this._scopeBtn?.setAttribute('aria-pressed', String(scopeState.enabled));
-    }
-    if (typeof scopeState.featherPct === 'number' && this._scopeFeatherSlider) {
-      const pct = Math.max(0, Math.min(100, Math.round(scopeState.featherPct)));
-      this._scopeFeatherSlider.value = String(pct);
-      if (this._scopeFeatherValue) this._scopeFeatherValue.textContent = `${pct}%`;
-      setScopeMaskFeather(pct / 100);
-    }
 
     const detectionState = state.detection || {};
     if (typeof detectionState.density === 'number' && this._detectionDensitySlider) {
@@ -8829,7 +8728,7 @@ export class StyleManager {
    * 2. Crossfades the new shader stage intensity to 1.
    * 3. Applies style preset defaults (bloom/sharpen/HUD) if applyPreset is true.
    * 4. Updates button highlights, style indicator, slider panel, HUD, and detection overlay.
-   * @param {string} styleName - Target style ('normal'|'retro'|'surveillance'|'thermal'|'anime'|'noir'|'snow').
+   * @param {string} styleName - Target style ('normal'|'surveillance'|'thermal').
    * @param {object} [options]
    * @param {boolean} [options.applyPreset=true] - Whether to apply STYLE_PRESET_DEFAULTS for the new style.
    * @returns {void}
@@ -8873,7 +8772,7 @@ export class StyleManager {
     });
 
     // Update style indicator
-    const displayNames = { surveillance: 'NVG', thermal: 'FLIR', retro: 'CRT' };
+    const displayNames = { surveillance: 'NVG', thermal: 'FLIR' };
     this._styleIndicator.textContent = displayNames[styleName] || styleName.toUpperCase();
     this._updateStyleMiniStatus(styleName);
 
@@ -9006,9 +8905,8 @@ export class StyleManager {
       }
 
       // Update time uniforms for animated shaders. Zero-intensity stages
-      // are disabled (see _initStages — the scope is now the explicit
-      // scopeMask canvas), so enabled === visible here; only these keep
-      // the loop and its continuous-render hold alive.
+      // are disabled (see _initStages), so enabled === visible here; only
+      // these keep the loop and its continuous-render hold alive.
       let animatedStageVisible = false;
       for (const [, stage] of this._stageEntries) {
         if (stage.enabled && stage.uniforms.time !== undefined) {
@@ -9016,7 +8914,7 @@ export class StyleManager {
           // Chain mode keeps zero-intensity stages ENABLED for pass parity —
           // only a stage that is actually VISIBLE keeps the loop (and the
           // continuous-render hold) alive, or a settled CRT session would
-          // hold the loop forever via an invisible snow stage.
+          // hold the loop forever via an invisible animated stage.
           if (stage.uniforms.intensity > 0.001) animatedStageVisible = true;
         }
       }
@@ -9719,7 +9617,6 @@ export class StyleManager {
     // a screen reader without this. It matters more now that the button ships
     // ACTIVE from markup (default-on, 2026-08-22): the very first thing assistive
     // tech reported was an unpressed-looking control over an armed layer.
-    // Mirrors #scope-toggle, which has always carried aria-pressed.
     this._models3dBtn?.setAttribute('aria-pressed', String(this._models3dEnabled));
   }
 

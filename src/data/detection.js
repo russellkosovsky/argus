@@ -58,7 +58,7 @@ import { detectionBracketOpacity } from './detectionPresentation.js';
  *   - BALANCED — stable mixed-layer label cohort at 50
  *   - DENSE    — broad stable mixed-layer label cohort at 75/100
  *
- * Theming is driven by THEME_MAP presets (retro, surveillance, thermal, default).
+ * Theming is driven by THEME_MAP presets (surveillance, thermal, default).
  * Density tuning and suspension allow external callers (scene transitions, UI)
  * to throttle or pause rendering without tearing down the overlay.
  */
@@ -549,7 +549,7 @@ function _publishDiagnostics() {
 
 /**
  * Switches the visual theme for detection's host paint lane.
- * @param {string} styleName - Theme key from THEME_MAP (e.g. 'retro', 'surveillance', 'thermal').
+ * @param {string} styleName - Theme key from THEME_MAP (e.g. 'surveillance', 'thermal').
  *   Falls back to '_default' for unrecognized names.
  */
 export function setDetectionStyle(styleName) {

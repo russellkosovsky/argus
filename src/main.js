@@ -27,7 +27,6 @@ import {
   holdContinuousRender,
   releaseContinuousRender,
 } from './renderGovernor.js';
-import { installScopeMask } from './scopeMask.js';
 
 
 /**
@@ -260,11 +259,6 @@ async function init() {
     // nothing animates per frame. Installed AFTER every module above has had
     // its chance to register pre-install holds. (perf wave 2)
     installRenderGovernor(viewer);
-
-    // The explicit scope mask replaces the emergent six-pass artifact —
-    // see src/scopeMask.js. Installed before the UI so the DISPLAY-rail
-    // toggle finds it live.
-    installScopeMask(viewer);
 
     // The follow camera recomputes the tracked target's dead-reckon position
     // every frame — tracking anything is a per-frame animation. (perf wave 2)
