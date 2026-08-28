@@ -150,6 +150,27 @@ const OVERPASS_UPSTREAMS = [
   // Verified: planet coverage (Texas query), CORS *, ~5-20 s cold latency.
   'https://overpass.private.coffee/api/interpreter',
 ];
+let _overpassUpstreamList = null;
+/**
+ * Resolved mirror list. Personal mirrors from GEV_OVERPASS_UPSTREAMS
+ * (comma-separated interpreter URLs) are tried BEFORE the public defaults —
+ * the intended escape hatch when the public instances are down or have
+ * rate-banned this IP. Built lazily on first request, NOT at module load:
+ * `.env` values land in process.env after this module is imported (see the
+ * rate-limiter note below).
+ */
+function overpassUpstreams() {
+  if (_overpassUpstreamList) return _overpassUpstreamList;
+  const extra = String(process.env.GEV_OVERPASS_UPSTREAMS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => {
+      if (!value) return false;
+      try { return ['http:', 'https:'].includes(new URL(value).protocol); } catch { return false; }
+    });
+  _overpassUpstreamList = [...new Set([...extra, ...OVERPASS_UPSTREAMS])];
+  return _overpassUpstreamList;
+}
 /**
  * TTL for FRESH cached Overpass responses (ms). Road geometry is static for
  * months — the original 45 s TTL forced a public-mirror round-trip on nearly
@@ -171,8 +192,24 @@ const OVERPASS_DISK_TTL_MS = 7 * 86_400_000;
 const OVERPASS_BOUNDARY_DISK_TTL_MS = 30 * 86_400_000;
 /** Disk-cache directory for Overpass responses. */
 const OVERPASS_DISK_DIR = path.join(process.cwd(), '.gev-cache', 'overpass');
-/** Per-upstream fetch timeout (ms). */
-const OVERPASS_TIMEOUT_MS = 22000;
+/**
+ * Per-upstream fetch timeout (ms) for ordinary queries (road geometry,
+ * installations, POI lookups) — these answer in a few seconds on a healthy
+ * mirror, so a hung mirror should not hold the failover walk for long
+ * (field-test 2026-08-28: every public mirror down or hanging = 4 x 22 s
+ * sequential worst case read as "everything loads really slow").
+ */
+const OVERPASS_TIMEOUT_MS = 8000;
+/**
+ * Per-upstream fetch timeout (ms) for BOUNDARY-class queries (is_in /
+ * admin-relation pivots). Multi-MB coastline geometry legitimately takes
+ * 10-25 s on public mirrors, so these keep the long budget.
+ */
+const OVERPASS_BOUNDARY_TIMEOUT_MS = 22000;
+/** Overall deadline (ms) across ALL mirror attempts for ordinary queries. */
+const OVERPASS_TOTAL_BUDGET_MS = 20000;
+/** Overall deadline (ms) across ALL mirror attempts for boundary queries. */
+const OVERPASS_BOUNDARY_TOTAL_BUDGET_MS = 45000;
 /** Max entries in the Overpass response cache (LRU-like, oldest evicted first). */
 const OVERPASS_CACHE_MAX_ENTRIES = 120;
 /** @type {Map<string,{status:number,body:string,contentType:string,endpoint:string,cachedAt:number}>} */
@@ -2493,9 +2530,24 @@ async function fetchOverpassPayload(body, maxResponseBytes = OVERPASS_MAX_RESPON
   let lastError = null;
   let lastRateLimitPayload = null;
 
-  for (const endpoint of OVERPASS_UPSTREAMS) {
+  // Boundary-class queries keep the long per-mirror timeout (they are slow on
+  // healthy mirrors); everything else fails over fast. Either way an overall
+  // deadline bounds the whole mirror walk, so four dead mirrors cannot stack
+  // their timeouts sequentially. The body is form-encoded — classify the
+  // decoded QL, matching what the cache-key classifier sees.
+  const decodedQl = (() => {
+    try { return new URLSearchParams(body).get('data') || ''; } catch { return ''; }
+  })();
+  const boundary = isOverpassBoundaryQuery(decodedQl);
+  const perMirrorMs = boundary ? OVERPASS_BOUNDARY_TIMEOUT_MS : OVERPASS_TIMEOUT_MS;
+  const deadlineAt = Date.now()
+    + (boundary ? OVERPASS_BOUNDARY_TOTAL_BUDGET_MS : OVERPASS_TOTAL_BUDGET_MS);
+
+  for (const endpoint of overpassUpstreams()) {
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs < 1000) break;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), OVERPASS_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), Math.min(perMirrorMs, remainingMs));
 
     try {
       const upstream = await fetch(endpoint, {
