@@ -2,7 +2,7 @@
   "name": "gods-eye-view",
   "private": true,
   "version": "0.1.0",
-  "description": "A real-time intelligence console for planet Earth — photorealistic 3D globe, live aircraft/ships/satellites/earthquakes/CCTV, and hands-free voice control. Runs in a browser.",
+  "description": "A real-time geospatial intelligence console — photorealistic 3D globe with live aircraft, ships, satellites, earthquakes, and public cameras. Runs in a browser.",
   "type": "module",
   "license": "MIT",
   "author": "Bilawal Sidhu",
@@ -27,8 +27,6 @@
     "adsb",
     "ais",
     "satellites",
-    "voice-control",
-    "openai-realtime",
     "visualization"
   ],
   "scripts": {
