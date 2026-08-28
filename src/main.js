@@ -18,7 +18,6 @@ import localDataLayers from './data/localLayers.js';
 import { LAYER_STATE_REGISTRY } from './data/layerState.js';
 import { registerDataCredits } from './data/dataCredits.js';
 import { SceneDirector } from './scenes/director.js';
-import { initGevVoiceCommands } from './voice/gevRealtime.js';
 import { MapStackController } from './mapStackController.js';
 import { initAnnotations } from './annotations/index.js';
 import { initLogoGaze } from './logoGaze.js';
@@ -116,7 +115,9 @@ async function init() {
         document.body.appendChild(el);
         return el;
       })(),
-      msaaSamples: 4,
+      // MSAA disabled: the biggest GPU cost on lower-end hardware, and the
+      // photoreal tiles gain little from it.
+      msaaSamples: 1,
       contextOptions: {
         webgl: {
           preserveDrawingBuffer: true,
@@ -160,6 +161,10 @@ async function init() {
       tileset = await Cesium.createGooglePhotorealistic3DTileset({
         onlyUsingWithGoogleGeocoder: true,
       });
+      // Coarser LOD cutoff than Cesium's default of 16: trades a little tile
+      // sharpness for a large cut in GPU, memory, and tile churn on
+      // lower-end hardware.
+      tileset.maximumScreenSpaceError = 24;
       viewer.scene.primitives.add(tileset);
       // NOTE: Cesium World Terrain intentionally disabled — conflicts with Google 3D Tiles at high zoom.
       // Google Photorealistic 3D Tiles provide their own terrain/elevation.
@@ -324,7 +329,6 @@ async function init() {
       getRenderGovernorDiagnostics,
       requestRender: governorRequestRender,
     };
-    window.__godsEyeView.voiceCommands = initGevVoiceCommands({ viewer, styleManager, dataManager, sceneDirector, annotations });
 
   } catch (error) {
     console.error("God's Eye View initialization failed:", error);

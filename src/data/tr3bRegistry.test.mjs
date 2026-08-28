@@ -30,7 +30,6 @@ import militaryFlightsLayer, {
   mapAnalystRecord as mapMilitaryAnalystRecord,
 } from './militaryFlights.js';
 import { findCompatibleHistoryIndex } from './militaryAwareness.js';
-import { createGevActionRunner } from '../voice/gevActions.js';
 import { ANALYST_LAYERS, createAnalystEngine } from './analystEngine.js';
 
 /** Strip block and line comments so source pins scan CODE, not prose. */
@@ -421,40 +420,18 @@ test('a converted contact never consumes a 3D model CAP SLOT', async () => {
 });
 
 test('cockpit class filter matches a converted contact end to end', async () => {
-  // The chain that was dead-ending: a spoken "TR-3B" is normalized by the voice
-  // layer, then the cockpit next/previous path matches it against the
-  // aircraftClass on getNearby RECORDS — which used to carry the underlying
-  // airframe class, so the filter never matched. Real normalizer + real
-  // getNearby record builder + real filter matcher; only the styleManager glue
-  // (covered by its own ui tests) is stubbed.
+  // The chain that was dead-ending: a "TR-3B" cockpit class filter is matched
+  // against the aircraftClass on getNearby RECORDS — which used to carry the
+  // underlying airframe class, so the filter never matched. Real getNearby
+  // record builder + real filter matcher.
   globalThis.window = globalThis.window || { clearTimeout, setTimeout, requestIdleCallback: null };
   clearTr3bRegistry();
   const icao24 = 'abc123';
   const center = Cesium.Cartesian3.fromDegrees(-97.7, 30.2, 200);
+  const spokenTr3b = TR3B_CLASS;
+  const spokenAirliner = 'airliner';
 
-  // 1) Real voice normalization: what the cockpit path actually receives.
-  const seen = [];
-  const runner = createGevActionRunner({
-    viewer: {
-      clock: { onTick: { addEventListener: () => () => {} } },
-      scene: { canvas: { addEventListener() {}, removeEventListener() {} } },
-      camera: { moveEnd: { addEventListener() {} } },
-    },
-    styleManager: {
-      controlCockpit(action, options) {
-        seen.push(options.aircraftClass);
-        return { ok: true, state: { active: true, navigation: { canNext: true, canPrevious: true, canFocus: true } } };
-      },
-    },
-    dataManager: { layers: new Map(), getAll: () => [] },
-  });
-  await runner('control_cockpit', { action: 'next', aircraftClass: 'TR-3B' });
-  await runner('control_cockpit', { action: 'next', aircraftClass: 'airliner' });
-  const [spokenTr3b, spokenAirliner] = seen;
-  assert.equal(spokenTr3b, TR3B_CLASS);
-  assert.equal(spokenAirliner, 'airliner');
-
-  // 2) Real getNearby record for a real (converted) contact in the layer.
+  // Real getNearby record for a real (converted) contact in the layer.
   const seed = () => _setTrackedFlightRefreshStateForTest({
     icao24,
     entity: null,

@@ -195,14 +195,12 @@ resolve_opensky_credentials
 
 # Optional keys: explicit env wins, followed by .env and Keychain fallback.
 # Add to Keychain with e.g.:
-#   security add-generic-password -U -s "openai-api" -a "api-key" -w
-OPENAI_API_KEY="${OPENAI_API_KEY:-$(read_dotenv_value "OPENAI_API_KEY")}"
+#   security add-generic-password -U -s "aisstream-api" -a "api-key" -w
 AISSTREAM_API_KEY="${AISSTREAM_API_KEY:-$(read_dotenv_value "AISSTREAM_API_KEY")}"
 CESIUM_ION_TOKEN="${CESIUM_ION_TOKEN:-$(read_dotenv_value "CESIUM_ION_TOKEN")}"
 LL2_API_TOKEN="${LL2_API_TOKEN:-$(read_dotenv_value "LL2_API_TOKEN")}"
 TOMTOM_API_KEY="${TOMTOM_API_KEY:-$(read_dotenv_value "TOMTOM_API_KEY")}"
 FIRMS_MAP_KEY="${FIRMS_MAP_KEY:-$(read_dotenv_value "FIRMS_MAP_KEY")}"
-OPENAI_API_KEY="${OPENAI_API_KEY:-$(read_keychain_secret "openai-api" "api-key")}"
 AISSTREAM_API_KEY="${AISSTREAM_API_KEY:-$(read_keychain_secret "aisstream-api" "api-key")}"
 CESIUM_ION_TOKEN="${CESIUM_ION_TOKEN:-$(read_keychain_secret "cesium-ion" "token")}"
 TOMTOM_API_KEY="${TOMTOM_API_KEY:-$(read_keychain_secret "tomtom-api" "api-key")}"
@@ -254,12 +252,12 @@ case "${HOST}" in
     echo ""
     echo "!! =============================================================="
     echo "!! WARNING: HOST=${HOST} — network-exposed mode."
-    echo "!! This dev server brokers your configured API keys (OpenAI,"
-    echo "!! OpenSky, AISStream, TomTom, FIRMS, LL2, Google) to ANYONE who can"
+    echo "!! This dev server brokers your configured API keys (OpenSky,"
+    echo "!! AISStream, TomTom, FIRMS, LL2, Google) to ANYONE who can"
     echo "!! reach it on the network. Use only on networks you trust."
-    echo "!! Consider the opt-in per-IP throttles GEV_RATELIMIT_OPENAI_PER_MIN"
-    echo "!! and GEV_RATELIMIT_GOOGLE_PER_MIN (see .env.example) — and note"
-    echo "!! they are NOT billing caps; set provider-side budget alerts too."
+    echo "!! Consider the opt-in per-IP throttle GEV_RATELIMIT_GOOGLE_PER_MIN"
+    echo "!! (see .env.example) — and note it is NOT a billing cap; set"
+    echo "!! provider-side budget alerts too."
     if [[ -n "${LAN_IP}" ]]; then
       echo "!! LAN URL: http://${LAN_IP}:${PORT}/"
     else
@@ -310,7 +308,6 @@ case "${OPENSKY_AUTH_MODE}" in
     echo "OpenSky auth: disabled (anonymous mode)"
     ;;
 esac
-[[ -n "${OPENAI_API_KEY}" ]] && echo "OpenAI key (voice + HUD summary): configured" || echo "OpenAI key (voice + HUD summary): not set — GEV MIC disabled"
 [[ -n "${AISSTREAM_API_KEY}" ]] && echo "AISStream key (live vessels): configured" || echo "AISStream key (live vessels): not set — ships layer empty"
 [[ -n "${CESIUM_ION_TOKEN}" ]] && echo "Cesium ion token (Bing map stacks): configured" || echo "Cesium ion token (Bing map stacks): not set — Google 3D/OSM only"
 [[ -n "${TOMTOM_API_KEY}" ]] && echo "TomTom key (live traffic flow): configured" || echo "TomTom key (live traffic flow): not set — simulated traffic"
@@ -352,7 +349,6 @@ put_env_if_set OPENSKY_CLIENT_ID "${OPENSKY_CLIENT_ID}"
 put_env_if_set OPENSKY_CLIENT_SECRET "${OPENSKY_CLIENT_SECRET}"
 put_env_if_set OPENSKY_USERNAME "${OPENSKY_USERNAME}"
 put_env_if_set OPENSKY_PASSWORD "${OPENSKY_PASSWORD}"
-put_env_if_set OPENAI_API_KEY "${OPENAI_API_KEY}"
 put_env_if_set AISSTREAM_API_KEY "${AISSTREAM_API_KEY}"
 put_env_if_set CESIUM_ION_TOKEN "${CESIUM_ION_TOKEN}"
 put_env_if_set TOMTOM_API_KEY "${TOMTOM_API_KEY}"

@@ -8,7 +8,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ui = fs.readFileSync(path.join(ROOT, 'src', 'ui.js'), 'utf8');
 const firms = fs.readFileSync(path.join(ROOT, 'src', 'data', 'firmsHeatmap.js'), 'utf8');
 const vessels = fs.readFileSync(path.join(ROOT, 'src', 'data', 'aisLiveVessels.js'), 'utf8');
-const voice = fs.readFileSync(path.join(ROOT, 'src', 'voice', 'gevActions.js'), 'utf8');
 const cameraVerbs = fs.readFileSync(path.join(ROOT, 'src', 'cameraVerbs.js'), 'utf8');
 const cockpitTracking = fs.readFileSync(path.join(ROOT, 'src', 'cockpitTracking.js'), 'utf8');
 
@@ -80,12 +79,12 @@ test('navigation clears dormant tracker IDs without aborting unrelated layer res
   assert.match(stamp, /if \(!passivelyClearedShareSelection && !satellitesLayer\.getTrackedInfo\?\.\(\)\)[\s\S]*?selectedSatTrackingId: null/);
 });
 
-test('voice Cockpit entry reaches the camera only through stamping seams', () => {
+test('Cockpit entry reaches the camera only through stamping seams', () => {
   // Cockpit is the camera-authority VETO HOLDER, not a petitioner: routing
   // entry through _runExplicitNavigation would make it refuse itself, because
   // cockpitActive is the state entry is trying to reach. What entry owes the
-  // policy is the STAMP that retires deferred navigation — and the voice path
-  // must not acquire the camera by any route that skips it.
+  // policy is the STAMP that retires deferred navigation — and no entry path
+  // may acquire the camera by any route that skips it.
   //
   // The transaction has exactly two camera-owner mutations, and each one
   // stamps:
@@ -125,11 +124,10 @@ test('voice Cockpit entry reaches the camera only through stamping seams', () =>
   assert.match(control, /error: entry\.error,/);
 });
 
-test('voice Cockpit next/previous shares the manual Context navigation path', () => {
-  // The voice verb must not grow a private focus route: manual PREVIOUS/NEXT
-  // and the voice verb both hand off through the owning layer's tracker, which
-  // is what stamps. Divergence here is how a voice-only camera path escapes
-  // the arbiter.
+test('Cockpit next/previous funnels through the Context navigation path', () => {
+  // Cockpit navigation must not grow a private focus route: PREVIOUS/NEXT
+  // hands off through the owning layer's tracker, which is what stamps.
+  // Divergence here is how a camera path escapes the arbiter.
   assert.match(
     ui,
     /this\._listen\(this\.contextPrevious, 'click', \(\) => this\.navigateContext\(-1, \{ origin: 'user' \}\)\);/,
@@ -195,23 +193,8 @@ test('accepted navigation releases through PR15-aware ownership before flight', 
   assert.match(release, /militaryFlightsLayer\.stopTracking\?\.\(\{ origin: trackingOrigin \}\)/);
 });
 
-test('validated voice camera destinations share the UI navigation authority facade', () => {
+test('camera verbs validate before the navigation handoff', () => {
   assert.match(ui, /runImmediateNavigation\(noun, navigate, releaseOptions = undefined\) \{\s*return this\._runExplicitNavigation\(noun, navigate, releaseOptions\);/);
-  assert.match(voice, /runManagedVoiceNavigation\(\s*styleManager, 'camera', 'move_camera', navigate, releaseOptions/);
-  assert.match(voice, /runManagedVoiceNavigation\(styleManager, 'route', 'fly_route', navigate/);
-  assert.match(voice, /runManagedVoiceNavigation\(styleManager, 'fire', 'track_entity'/);
-  assert.match(voice, /runManagedVoiceNavigation\(styleManager, family\.kind, 'track_entity'/);
-  assert.match(voice, /runManagedVoiceNavigation\(styleManager, 'frame', 'frame_overhead'/);
-  const trackedVoice = voice.slice(
-    voice.indexOf('async function trackEntity'),
-    voice.indexOf('async function frameOverhead'),
-  );
-  const framedVoice = voice.slice(
-    voice.indexOf('async function frameOverhead'),
-    voice.indexOf('/** Gathers tracked/selected entities'),
-  );
-  assert.doesNotMatch(trackedVoice, /supersedeDeferredNavigation/);
-  assert.doesNotMatch(framedVoice, /supersedeDeferredNavigation/);
 
   const move = body(
     cameraVerbs,
@@ -236,10 +219,6 @@ test('validated voice camera destinations share the UI navigation authority faca
     'const start = () => {',
     "return typeof runNavigation === 'function' ? runNavigation(start) : start();",
   ], 'route validation before handoff');
-  // The corridor warm is injected the same way the floor READ is — the dolly
-  // never reaches into the data layer itself, and the voice dispatch is the one
-  // place that binds both.
-  assert.match(voice, /\(lat, lon\) => cachedGroundFloor\(lat, lon\),[\s\S]{0,200}?\(cells\) => warmGroundFloor\(cells\),/);
 });
 
 test('deferred search releases only after its final authority check', () => {

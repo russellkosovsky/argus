@@ -18,7 +18,6 @@ import { forward as toMGRS } from 'mgrs';
 import { CITY_POIS } from './locations.js';
 import { composeLocalityTag } from './hudLocality.js';
 import { ellipsoidalToMslDisplayM, ensureGeoidReady, geoidHeight } from './data/geoid.js';
-import { getBasemapLabelContext } from './voice/gevActions.js';
 
 /** Color palettes keyed by shader mode; applied as CSS custom properties. */
 const HUD_COLORS = {
@@ -34,7 +33,6 @@ const MILITARY_STYLES = new Set(['retro', 'surveillance', 'thermal']);
 /** Allowed HUD layout variants. */
 const HUD_VARIANTS = new Set(['tactical', 'operator', 'minimal']);
 const HUD_SUMMARY_INTERVAL_MS = 15000;
-const HUD_SUMMARY_URL = '/api/openai/hud-summary';
 
 /**
  * Cell size (degrees) for the ALT readout's geoid-undulation cache. N changes
@@ -82,15 +80,10 @@ export class IntelHUD {
     this._dataManager = null;
     this._dataManagerUnsubscribe = null;
     this._summaryDirty = true;
-    this._summaryRequest = null;
-    this._lastSummarySignature = '';
-    this._summaryRevision = 0;
-    // One-shot guards so the very first summary lands immediately instead of
-    // waiting for the 15s interval tick: B) swap the "Awaiting telemetry..."
-    // placeholder for the deterministic line as soon as metrics exist, then
-    // A) kick a real AI summary once the intro fly-to settles.
+    // One-shot guard so the very first summary lands immediately instead of
+    // waiting for the 15s interval tick: swap the "Awaiting telemetry..."
+    // placeholder for the deterministic line as soon as metrics exist.
     this._firstMetricsShown = false;
-    this._firstSummaryKicked = false;
     // ALT readout datum: the camera height Cesium reports is ELLIPSOIDAL, the
     // number a viewer reads is MSL. N comes from the same lazy ~2.7 MB EGM96
     // chunk the flight layers use — requested on the first telemetry tick of a
@@ -109,17 +102,10 @@ export class IntelHUD {
       this._markSummaryDirty();
       // The 250 ms telemetry timer and 15 s semantic-summary timer must not
       // leave the prior city on-screen after a long CCTV focus flight.
-      // Refresh deterministic camera context synchronously on settle; the AI
-      // summary can still upgrade it on its normal cadence.
+      // Refresh deterministic camera context synchronously on settle.
       if (this._visible) {
         this._updateCameraData();
         this._setSummaryText(this._composeSummary(), false);
-      }
-      // First settled view: request the AI summary now rather than waiting for
-      // the periodic tick (saves up to ~15s of "Awaiting telemetry...").
-      if (!this._firstSummaryKicked && this._visible && this._latestMetrics) {
-        this._firstSummaryKicked = true;
-        void this._updateSummary(true, true);
       }
     };
 
@@ -234,7 +220,7 @@ export class IntelHUD {
     // Semantic summary refresh cadence
     this._summaryInterval = setInterval(() => {
       if (!this._visible) return;
-      void this._updateSummary(true);
+      this._updateSummary(true);
     }, HUD_SUMMARY_INTERVAL_MS);
   }
 
@@ -371,9 +357,8 @@ export class IntelHUD {
     };
 
     // First time we have real telemetry: replace the "Awaiting telemetry..."
-    // placeholder with the deterministic summary line instantly (no network),
-    // so there's always meaningful context on screen. The AI summary upgrades
-    // this within a second via the moveEnd kick / periodic refresh.
+    // placeholder with the deterministic summary line instantly, so there's
+    // always meaningful context on screen.
     if (!this._firstMetricsShown) {
       this._firstMetricsShown = true;
       this._setSummaryText(this._composeSummary(), false);
@@ -384,9 +369,8 @@ export class IntelHUD {
     // repaints on camera settle or its own 15 s retry — so without this the
     // corner reads `ALT: 17m` beside a summary still reading `ALT -15M`, for
     // up to fifteen seconds. Repaint the deterministic line in the SAME tick
-    // the correction turns on (or off, if a lookup starts failing), and mark
-    // the summary dirty so the AI line refreshes on its normal cadence —
-    // exactly what a camera settle already does.
+    // the correction turns on (or off, if a lookup starts failing) — exactly
+    // what a camera settle already does.
     const geoidCorrectionApplied = Number.isFinite(geoidN);
     if (geoidCorrectionApplied !== this._geoidCorrectionApplied) {
       this._geoidCorrectionApplied = geoidCorrectionApplied;
@@ -614,75 +598,15 @@ export class IntelHUD {
   }
 
   /**
-   * Refresh the summary readout. Optionally animates the text via typewriter.
+   * Refresh the summary readout with the deterministic semantic line.
+   * Optionally animates the text via typewriter.
    * @param {boolean} [animate=false] - If true, types the summary character
    *   by character; otherwise sets it instantly.
    */
-  async _updateSummary(animate = false, force = false) {
-    const fallbackText = this._composeSummary();
-    if (!this._latestMetrics) {
-      this._setSummaryText(fallbackText, animate);
-      return;
-    }
-    if (!force && !this._summaryDirty) return;
-
-    const revision = this._summaryRevision;
-    // Every caller invokes this as `void this._updateSummary(...)`, so nothing
-    // owns the returned promise — a rejection escaping from here lands as an
-    // unhandled rejection in the console. Building the context walks the live
-    // scene (the view-target pick, the layer roster), so it belongs INSIDE a
-    // guard rather than in front of one. A summary we cannot build is a
-    // fallback line, not a crash.
-    let context;
-    try {
-      context = await this._summaryContext();
-    } catch (error) {
-      console.warn('[HUD] summary context unavailable:', error);
-      // Left dirty on purpose: the next periodic tick retries instead of
-      // sticking on the fallback line for the rest of the session.
-      this._setSummaryText(fallbackText, animate);
-      return;
-    }
-    if (revision !== this._summaryRevision) return;
-    const signature = JSON.stringify(context);
-    if (!force && signature === this._lastSummarySignature) {
-      this._summaryDirty = false;
-      return;
-    }
-    if (this._summaryRequest) return;
-
-    if (force) this._setSummaryText(fallbackText, false);
+  _updateSummary(animate = false, force = false) {
+    if (this._latestMetrics && !force && !this._summaryDirty) return;
     this._summaryDirty = false;
-    this._lastSummarySignature = signature;
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 5000);
-    this._summaryRequest = controller;
-    try {
-      const response = await fetch(HUD_SUMMARY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(context),
-        signal: controller.signal,
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.summary) {
-        throw new Error(data?.error || `HTTP ${response.status}`);
-      }
-      if (revision !== this._summaryRevision) return;
-      this._setSummaryText(data.summary, animate);
-    } catch (error) {
-      if (error?.name !== 'AbortError') {
-        console.warn('[HUD] AI summary unavailable:', error);
-        // Invalidate the committed signature so the next periodic tick
-        // retries instead of sticking on the fallback line forever.
-        this._lastSummarySignature = null;
-        this._summaryDirty = true;
-      }
-      this._setSummaryText(fallbackText, animate);
-    } finally {
-      window.clearTimeout(timeout);
-      if (this._summaryRequest === controller) this._summaryRequest = null;
-    }
+    this._setSummaryText(this._composeSummary(), animate);
   }
 
   _setSummaryText(text, animate) {
@@ -694,22 +618,8 @@ export class IntelHUD {
     if (el) el.textContent = text;
   }
 
-  async _summaryContext() {
-    const labels = await getBasemapLabelContext(this.viewer);
-    const enabledLayers = this._dataManager?.getAll?.()
-      ?.filter((layer) => layer.enabled)
-      .map((layer) => layer.name) || [];
-    return {
-      placeLabels: labels.placeLabels,
-      streetLabels: labels.streetLabels,
-      nearbyPlaceLabels: labels.nearbyPlaceLabels,
-      enabledLayerLabels: enabledLayers,
-    };
-  }
-
   _markSummaryDirty() {
     this._summaryDirty = true;
-    this._summaryRevision++;
   }
 
   // ── Public API ──────────────────────────
@@ -754,7 +664,7 @@ export class IntelHUD {
     if (this._el) this._el.classList.add('active');
     this._updateCameraData(); // immediate update
     this._markSummaryDirty();
-    void this._updateSummary(false, true);
+    this._updateSummary(false, true);
   }
 
   /** Hide the HUD overlay. */
@@ -848,6 +758,5 @@ export class IntelHUD {
     clearInterval(this._summaryTypingInterval);
     this.viewer.camera.moveEnd.removeEventListener(this._onCameraMoveEnd);
     this._dataManagerUnsubscribe?.();
-    this._summaryRequest?.abort();
   }
 }

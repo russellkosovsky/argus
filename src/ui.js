@@ -301,7 +301,6 @@ const LEFT_STACK_OBSTACLE_SELECTOR = [
   '#cesium-credits .cesium-credit-textContainer',
   '#location-bar',
   '#control-panel',
-  '#gev-voice-control',
   '#pp-toggles',
   '#param-slider-panel',
 ].join(', ');
@@ -352,7 +351,6 @@ const RIGHT_STACK_OBSTACLE_SELECTOR = [
   '#cesium-credits .cesium-credit-logoContainer',
   '#cesium-credits .cesium-credit-textContainer',
   '#command-dock',
-  '#gev-voice-control',
 ].join(', ');
 /** Display labels shown in the mini-status readout for each active style. */
 const STYLE_STATUS_LABELS = {
