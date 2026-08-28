@@ -17,10 +17,8 @@ import militaryAwarenessLayer from './data/militaryAwareness.js';
 import localDataLayers from './data/localLayers.js';
 import { LAYER_STATE_REGISTRY } from './data/layerState.js';
 import { registerDataCredits } from './data/dataCredits.js';
-import { SceneDirector } from './scenes/director.js';
 import { MapStackController } from './mapStackController.js';
 import { initAnnotations } from './annotations/index.js';
-import { initLogoGaze } from './logoGaze.js';
 import { initCockpitCloudEffects } from './cockpitCloudEffects.js';
 import {
   installRenderGovernor,
@@ -30,9 +28,7 @@ import {
   releaseContinuousRender,
 } from './renderGovernor.js';
 import { installScopeMask } from './scopeMask.js';
-import { initFirstRunExperience } from './firstRunExperience.js';
 
-initLogoGaze();
 
 /**
  * Extract a human-readable error message from any thrown value.
@@ -247,9 +243,6 @@ async function init() {
     dataManager.buildTogglePanel(document.getElementById('data-toggles'));
     styleManager.attachDataManager(dataManager);
 
-    // Initialize deterministic scene playback for social clip capture
-    const sceneDirector = new SceneDirector(viewer, styleManager, dataManager);
-
     // Initialize the voice "whiteboard" annotation engine (world-space renderer)
     const annotations = initAnnotations({ viewer, tileset });
 
@@ -260,19 +253,6 @@ async function init() {
       new Promise((resolve) => setTimeout(resolve, 1000)),
     ]).finally(() => {
       loadingScreen.classList.add('hidden');
-      // Reveal only after the loading cover has yielded. transitionend can be
-      // absent under reduced motion, so a bounded fallback makes this reliable.
-      let firstRunRevealed = false;
-      const revealFirstRun = () => {
-        if (firstRunRevealed) return;
-        firstRunRevealed = true;
-        // dataManager is passed explicitly: the globe missions enable bundled
-        // keyless layers through it, and reaching for styleManager._dataManager
-        // would make a private field part of this feature's contract.
-        initFirstRunExperience({ styleManager, dataManager });
-      };
-      loadingScreen.addEventListener('transitionend', revealFirstRun, { once: true });
-      setTimeout(revealFirstRun, 900);
     });
 
     // Expose for debugging
@@ -321,7 +301,6 @@ async function init() {
       styleManager,
       tileset,
       dataManager,
-      sceneDirector,
       mapStackController,
       annotations,
       weatherEffects,

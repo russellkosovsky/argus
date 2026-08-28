@@ -9,7 +9,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const ui = fs.readFileSync(path.join(ROOT, 'src', 'ui.js'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'style.css'), 'utf8');
-const sceneDirector = fs.readFileSync(path.join(ROOT, 'src', 'scenes', 'director.js'), 'utf8');
 const manager = fs.readFileSync(path.join(ROOT, 'src', 'data', 'manager.js'), 'utf8');
 const contextLayer = fs.readFileSync(path.join(ROOT, 'src', 'data', 'militaryAwareness.js'), 'utf8');
 
@@ -210,7 +209,6 @@ test('Cockpit owns a focused shared Display portal and compact Radio controls', 
   const hiddenRule = css.match(/body\.cockpit-mode :is\(([^)]*)\)\s*\{\s*display:\s*none\s*!important;/);
   assert.ok(hiddenRule, 'Cockpit hidden-chrome rule is missing');
   assert.match(css, /body\.cockpit-mode #right-context-rail\s*\{\s*display:\s*none\s*!important;/);
-  assert.match(css, /body\.cockpit-mode #left-panel-stack > #scene-panel\s*\{\s*display:\s*none\s*!important;/);
   assert.match(html, /id="cockpit-display-toggle-btn"[^>]*aria-controls="cockpit-display-panel"/);
   assert.match(html, /id="cockpit-display-toggle-btn"[^>]*>◀<\/button>/);
   assert.match(html, /data-cockpit-launcher="display"[\s\S]*?id="cockpit-display-toggle-btn"/);
@@ -221,13 +219,6 @@ test('Cockpit owns a focused shared Display portal and compact Radio controls', 
   assert.match(html, /id="reset-globe-view"[^>]*aria-label="Reset to full globe view"/);
   assert.match(css, /#top-center-actions\s*\{[\s\S]*?left:\s*50%;[\s\S]*?display:\s*flex;[\s\S]*?transform:\s*translateX\(-50%\)/);
   assert.match(css, /body\.ui-clean-view #top-center-actions/);
-  assert.match(css, /body\.recording-mode #top-center-actions/);
-  assert.match(
-    css,
-    /body\.scene-playback-mode :is\(#clear-selected-layers, #reset-globe-view\)\s*\{\s*display:\s*none !important;/,
-  );
-  assert.match(sceneDirector, /this\._running = true;\s*document\.body\.classList\.add\('scene-playback-mode'\);/);
-  assert.match(sceneDirector, /styleManager\.setRecordingMode\(false\);\s*document\.body\.classList\.remove\('scene-playback-mode'\);/);
   assert.equal((html.match(/id="hud-toggle"/g) || []).length, 1, 'HUD control must have one stateful DOM owner');
   assert.equal((html.match(/id="detection-toggle"/g) || []).length, 1, 'Detection control must have one stateful DOM owner');
   assert.equal((html.match(/id="models3d-toggle"/g) || []).length, 1, '3D control must have one stateful DOM owner');
@@ -374,7 +365,6 @@ test('fresh Cockpit entry temporarily collapses map panels and exit restores the
   for (const panelId of [
     'data-panel',
     'cctv-panel',
-    'scene-panel',
     'pp-toggles',
     'global-context-panel',
     'radio-panel',

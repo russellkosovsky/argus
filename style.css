@@ -299,128 +299,6 @@ body.cockpit-mode #cockpit-cloud-effects.active {
     margin: 0 !important;
   }
 }
-/* Clean-view / recording: the Google + Cesium attribution MUST stay visible.
-   Google Maps Platform ToS and Cesium's terms require the credit whenever the
-   content is displayed — and these are exactly the modes used to record demos
-   and launch videos, so hiding #cesium-credits here (as it was before) shipped
-   non-compliant footage. The full credit line — Cesium/Ion logo, "Google Maps",
-   and the "Data attribution" link that opens the per-layer license popover —
-   stays on screen; it's already styled small and unobtrusive above. The GEV
-   chrome (panels/HUD) still fades via its own rules; only the required notice
-   is exempt. (Note: Cesium re-applies inline styles on the credit elements each
-   frame, so the on-screen credit content is owned by Cesium's update loop, not
-   CSS overrides — we deliberately don't fight it here.) */
-
-#gev-voice-control {
-  position: fixed;
-  right: 36px;
-  bottom: 36px;
-  /* Z ladder: panels 100-139, voice pill 150, toast 200, clean-view-exit 300 */
-  z-index: 150;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 214px;
-  padding: 9px 14px;
-  color: var(--text-primary);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 0 20px rgba(0, 212, 255, 0.08);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  font-family: var(--font-mono);
-  pointer-events: auto;
-}
-
-#gev-voice-button {
-  width: 72px;
-  height: 34px;
-  flex: 0 0 auto;
-  color: var(--accent);
-  background: rgba(0, 212, 255, 0.06);
-  border: 1px solid rgba(0, 212, 255, 0.28);
-  border-radius: var(--btn-radius);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0;
-  cursor: pointer;
-}
-
-#gev-voice-button:hover {
-  color: #ffffff;
-  border-color: var(--accent);
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.22);
-}
-
-.gev-voice-readout {
-  min-width: 0;
-  line-height: 1.2;
-  text-align: right;
-}
-
-#gev-voice-status {
-  font-size: 10px;
-  color: var(--accent);
-}
-
-#gev-voice-detail {
-  max-width: 132px;
-  margin-top: 2px;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#gev-voice-control[data-status='listening'] {
-  border-color: rgba(92, 255, 198, 0.45);
-}
-
-#gev-voice-control[data-status='listening'] #gev-voice-status {
-  color: #5cffc6;
-}
-
-#gev-voice-control[data-status='executing'] {
-  border-color: rgba(255, 220, 120, 0.55);
-}
-
-#gev-voice-control[data-status='executing'] #gev-voice-status {
-  color: #ffdc78;
-}
-
-#gev-voice-control[data-status='error'] {
-  align-items: flex-start;
-  width: min(440px, calc(100vw - 72px));
-  border-color: rgba(255, 92, 110, 0.6);
-  /* Multi-line error block reads as a panel, not a capsule */
-  border-radius: var(--panel-radius);
-}
-
-#gev-voice-control[data-status='error'] #gev-voice-status {
-  color: #ff5c6e;
-}
-
-#gev-voice-control[data-status='error'] .gev-voice-readout {
-  flex: 1;
-  text-align: left;
-}
-
-#gev-voice-control[data-status='error'] #gev-voice-detail {
-  max-width: none;
-  overflow: visible;
-  color: #ffb4bd;
-  line-height: 1.45;
-  text-overflow: clip;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  user-select: text;
-}
 
 /* ── Title Bar ────────────────────────────────── */
 #title-bar {
@@ -1417,16 +1295,10 @@ body.ui-clean-view #location-bar,
 body.ui-clean-view #data-panel,
 body.ui-clean-view #cctv-panel,
 body.ui-clean-view #radio-panel,
-body.ui-clean-view #global-context-panel,
-body.ui-clean-view #scene-panel {
+body.ui-clean-view #global-context-panel {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-}
-
-body.ui-clean-view #scene-runtime.active {
-  opacity: 1;
-  visibility: visible;
 }
 
 /* ── Detection Toggle States ─────────────────── */
@@ -2039,130 +1911,6 @@ body.ui-clean-view #scene-runtime.active {
    instead of trailing a 34px stub and its flex gap. */
 #traffic-sync-progress:empty {
   display: none;
-}
-
-/* ── Split-flap chip text ─────────────────────────────────────────
-   Per-character departure-board flip when a chip label changes.
-   Driven entirely by src/splitFlap.js, which rebuilds the label as
-   one span per character on the change and strips them again once
-   the cascade lands.
-
-   The DOM text is the truth and its node never moves. A chip label is
-   upgraded once into a permanent shell — a .gev-flap-text span holding
-   one long-lived Text node, plus an aria-hidden .gev-flap-cells
-   sibling — and from then on a label change is only `node.data = next`.
-   During a cascade the host takes .gev-flap-active, which clips the
-   real text out of view and lets the cells stand in for it. The cells
-   carry no text at all: both glyphs are generated content (::before =
-   outgoing, ::after = incoming), and generated content never reaches
-   textContent. That is what keeps QA pins and the traffic chip's own
-   `textContent !==` guard honest, and it lets the cells be rebuilt
-   freely while the aria-live region sees only one characterData
-   change per label update.
-
-   Motion matches the cockpit odometer roll (.cockpit-roll-token):
-   same cubic-bezier, same reduced-motion treatment. Only the
-   left-to-right stagger is new — that cascade is what makes it read
-   as a Solari board rather than a counter.
-   ------------------------------------------------------------------ */
-/* While the flaps play, the real text is clipped out of view but stays in
-   the DOM and in the accessibility tree — same clipped-but-present treatment
-   as .world-overlay-accessibility. It is never removed or reparented. */
-.gev-flap-host.gev-flap-active > .gev-flap-text {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-/* Permanent sibling: empty (and so zero-width) whenever no cascade is running. */
-.gev-flap-cells {
-  white-space: pre;
-}
-.gev-flap-cell {
-  display: inline-block;
-  /* Chip labels carry real spaces; a collapsed space would drop a column. */
-  white-space: pre;
-}
-/* The incoming glyph is in flow, so it — not any text node — is what gives
-   the column its natural width. EVERY column has one, including a column the
-   new string does not reach: that one carries a blank, so it holds its width
-   and its index for the whole cascade instead of collapsing. Collapsing would
-   stack the absolutely-positioned outgoing glyphs on one x and would let a
-   later glyph slide into an earlier column. */
-.gev-flap-cell::after {
-  content: attr(data-flap-next);
-  display: inline-block;
-  white-space: pre;
-}
-.gev-flap-cell.is-flapping {
-  position: relative;
-  /* Relative to the chip's own font size, so the foreshortening reads the
-     same on the 8px status chips as it would anywhere else. */
-  perspective: 4em;
-}
-.gev-flap-cell.is-flapping::before,
-.gev-flap-cell.is-flapping::after {
-  transform-origin: 50% 50%;
-  backface-visibility: hidden;
-}
-.gev-flap-cell.is-flapping::after {
-  animation: gev-flap-in var(--gev-flap-dur, 190ms)
-    cubic-bezier(0.2, 0.75, 0.25, 1) var(--gev-flap-delay, 0ms) both;
-}
-/* Out of flow, so the outgoing glyph overlays its own column without
-   affecting layout — one per column, each anchored to its own cell box. */
-.gev-flap-cell.is-flapping::before {
-  content: attr(data-flap-prev);
-  position: absolute;
-  top: 0;
-  left: 0;
-  white-space: pre;
-  animation: gev-flap-out var(--gev-flap-dur, 190ms)
-    cubic-bezier(0.2, 0.75, 0.25, 1) var(--gev-flap-delay, 0ms) both;
-}
-/* Length changes are eased, never snapped. A GROWING label reserves its new
-   columns the moment the cells go in, so splitFlap.js eases from the previous
-   on-screen width to the cascade width at the start. A SHRINKING one holds
-   every column for the whole cascade, so its ease runs at SETTLEMENT instead,
-   from the cascade width down to the natural width — one smooth transition
-   after the flaps have landed, rather than columns collapsing underneath
-   them. */
-.gev-flap-sizing {
-  display: inline-block;
-  transition: width var(--gev-flap-total, 500ms) cubic-bezier(0.2, 0.75, 0.25, 1);
-}
-/* The old leaf hinges down and away on the cell's midline. */
-@keyframes gev-flap-out {
-  0% { transform: rotateX(0deg); opacity: 1; }
-  48% { transform: rotateX(-88deg); opacity: 0.5; }
-  100% { transform: rotateX(-90deg); opacity: 0; }
-}
-/* The new leaf waits for the old one to clear, then drops in and settles
-   with a single small overshoot — the mechanical clack. */
-@keyframes gev-flap-in {
-  0% { transform: rotateX(90deg); opacity: 0; }
-  46% { transform: rotateX(90deg); opacity: 0; }
-  78% { transform: rotateX(-7deg); opacity: 1; }
-  100% { transform: rotateX(0deg); opacity: 1; }
-}
-/* Matches the .cockpit-roll-track treatment: collapse the duration rather
-   than dropping the animation, so the final frame still lands the glyph.
-   src/splitFlap.js also checks the query and takes the instant path, so
-   this is the belt to that braces. */
-@media (prefers-reduced-motion: reduce) {
-  .gev-flap-cell.is-flapping::before,
-  .gev-flap-cell.is-flapping::after {
-    animation-duration: 1ms;
-    animation-delay: 0ms;
-  }
-  .gev-flap-sizing {
-    transition-duration: 1ms;
-  }
 }
 
 /* ── Toast Notification ──────────────────────── */
@@ -3854,7 +3602,6 @@ body.cockpit-mode #left-panel-stack {
   max-height: none;
   transition: none;
 }
-body.cockpit-mode #left-panel-stack > #scene-panel { display: none !important; }
 body.cockpit-mode #right-context-rail {
   display: none !important;
 }
@@ -4007,70 +3754,6 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
   .cockpit-altitude-rim-pointer .material-symbols-outlined { animation: none; }
   .cockpit-altitude-rim-scale > span { transition: none; }
   [data-cockpit-brief-page] { animation: none; }
-}
-
-/* ── Safe Frame Overlay ─────────────────────── */
-#safe-frame-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 95;
-  pointer-events: none;
-  display: none;
-}
-
-#safe-frame-overlay.active {
-  display: block;
-}
-
-#safe-frame-box {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(90vw, calc(90vh * (16 / 9)));
-  aspect-ratio: 16 / 9;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.35),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-#safe-frame-overlay.ratio-9-16 #safe-frame-box {
-  width: min(58vh, 76vw);
-  aspect-ratio: 9 / 16;
-}
-
-/* Rule-of-thirds guides */
-#safe-frame-box::before,
-#safe-frame-box::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-#safe-frame-box::before {
-  background:
-    linear-gradient(to right,
-      transparent 33.333%,
-      rgba(255, 255, 255, 0.2) 33.333%,
-      rgba(255, 255, 255, 0.2) 33.7%,
-      transparent 33.7%,
-      transparent 66.333%,
-      rgba(255, 255, 255, 0.2) 66.333%,
-      rgba(255, 255, 255, 0.2) 66.7%,
-      transparent 66.7%
-    ),
-    linear-gradient(to bottom,
-      transparent 33.333%,
-      rgba(255, 255, 255, 0.2) 33.333%,
-      rgba(255, 255, 255, 0.2) 33.7%,
-      transparent 33.7%,
-      transparent 66.333%,
-      rgba(255, 255, 255, 0.2) 66.333%,
-      rgba(255, 255, 255, 0.2) 66.7%,
-      transparent 66.7%
-    );
 }
 
 /* ── Orbit Indicator ─────────────────────────── */
@@ -5790,11 +5473,6 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 .military-awareness-direction-arrow { position: absolute; left: 50%; top: 50%; color: #74dbff; font: 23px/1 sans-serif; transform-origin: 50% 50%; text-shadow: 0 0 5px rgba(87,223,255,0.9), 0 0 13px rgba(87,223,255,0.35); }
 .military-awareness-direction-label { position: absolute; left: 50%; top: 50%; padding: 3px 6px; border: 1px solid rgba(116,219,255,0.24); border-radius: 3px; color: #bceeff; background: rgba(5,12,20,0.68); font: 8px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; white-space: pre; text-shadow: 0 0 5px rgba(116,219,255,0.38); }
 
-.data-toggle-row.gev-voice-focus {
-  background: rgba(92, 255, 198, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(92, 255, 198, 0.72), 0 0 18px rgba(92, 255, 198, 0.18);
-}
-
 .data-toggle-top {
   display: flex;
   align-items: center;
@@ -6319,23 +5997,9 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
   text-shadow: 0 0 10px rgba(0, 212, 255, 0.18);
 }
 
-/* ── Scene Director Panel ───────────────────── */
-#scene-panel {
-  --panel-expanded-width: 360px;
-  position: fixed;
-  top: calc(var(--left-stack-top) + (var(--left-stack-gap) * 2));
-  left: var(--left-stack-x);
-  right: auto;
-  bottom: auto;
-  z-index: 100;
-  width: var(--panel-expanded-width);
-  max-height: calc(100vh - 24px);
-}
-
 #left-panel-stack > #data-panel,
 #left-panel-stack > #cctv-panel,
-#left-panel-stack > #global-context-panel,
-#left-panel-stack > #scene-panel {
+#left-panel-stack > #global-context-panel {
   position: relative;
   top: auto;
   right: auto;
@@ -6356,8 +6020,6 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
   order: 2;
 }
 
-#left-panel-stack > #scene-panel { order: 4; }
-
 /*
  * Runtime focus mode: the layout engine applies this only when the expanded
  * panel's measured natural height plus sibling labels cannot fit inside the
@@ -6368,19 +6030,14 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 }
 
 #left-panel-stack > #data-panel:not(.collapsed),
-#left-panel-stack > #cctv-panel:not(.collapsed),
-#left-panel-stack > #scene-panel:not(.collapsed) {
+#left-panel-stack > #cctv-panel:not(.collapsed) {
   box-sizing: border-box;
   flex: 0 1 var(--left-panel-allocated-height, auto);
   height: var(--left-panel-allocated-height, auto);
   max-height: var(--left-panel-allocated-height, 100%);
 }
 
-/*
- * When an expanded panel and its collapsed siblings fit together, preserve
- * the canonical control order and center their combined stack at 50vh.
- */
-#left-panel-stack.layout-tail > :is(#data-panel, #cctv-panel, #scene-panel):not(.collapsed) {
+#left-panel-stack.layout-tail > :is(#data-panel, #cctv-panel):not(.collapsed) {
   box-sizing: border-box;
   flex: 0 0 var(--left-panel-allocated-height);
   height: var(--left-panel-allocated-height);
@@ -6388,8 +6045,7 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 }
 
 #left-panel-stack > #data-panel:not(.collapsed) .data-panel-inner,
-#left-panel-stack > #cctv-panel:not(.collapsed) .cctv-panel-inner,
-#left-panel-stack > #scene-panel:not(.collapsed) .scene-panel-inner {
+#left-panel-stack > #cctv-panel:not(.collapsed) .cctv-panel-inner {
   height: 100%;
   max-height: 100%;
 }
@@ -6398,8 +6054,7 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
   overflow: hidden;
 }
 
-#left-panel-stack > #cctv-panel:not(.collapsed) .cctv-panel-inner,
-#left-panel-stack > #scene-panel:not(.collapsed) .scene-panel-inner {
+#left-panel-stack > #cctv-panel:not(.collapsed) .cctv-panel-inner {
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
@@ -6419,196 +6074,6 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 #right-context-rail [data-panel-id]:not(.collapsed) .panel-divider {
   background: linear-gradient(90deg, rgb(0 212 255 / 28%), rgba(0, 212, 255, 0.18) 58%, transparent);
   box-shadow: 0 0 7px rgba(0, 212, 255, 0.22);
-}
-
-#scene-panel .panel-glow {
-  position: absolute;
-  inset: -18px;
-  background: radial-gradient(ellipse at center, rgba(0, 212, 255, 0.16) 0%, transparent 65%);
-  filter: blur(16px);
-  opacity: 0.25;
-  pointer-events: none;
-}
-
-.scene-panel-inner {
-  position: relative;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--panel-radius);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 24px);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
-    0 1px 0 rgba(255, 255, 255, 0.06) inset;
-}
-
-.scene-controls {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-
-#scene-select {
-  flex: 1;
-  min-width: 0;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 7px;
-  color: var(--text-primary);
-  padding: 6px 8px;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  outline: none;
-}
-
-.scene-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 7px;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 1.2px;
-  padding: 6px 9px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
-  flex: 1;
-  min-width: 72px;
-}
-
-#scene-start-btn,
-#scene-stop-btn,
-#scene-next-btn {
-  flex: 1 1 0;
-}
-
-.scene-shot-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 160px;
-  min-height: 96px;
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 2px 6px;
-  margin-bottom: 8px;
-}
-
-.scene-shot-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.scene-shot-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-}
-
-.scene-shot-empty {
-  border: 1px dashed rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  padding: 10px 8px;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 1px;
-  color: var(--text-dim);
-}
-
-.scene-shot-row {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 9px;
-  padding: 7px 8px;
-  background: rgba(255, 255, 255, 0.03);
-  transition: border-color var(--transition-fast), background var(--transition-fast);
-}
-
-.scene-shot-row.active {
-  border-color: var(--accent);
-  background: rgba(0, 212, 255, 0.08);
-}
-
-.scene-shot-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.scene-shot-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: var(--text-primary);
-}
-
-.scene-shot-meta {
-  margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.8px;
-  color: var(--text-dim);
-}
-
-.scene-shot-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.scene-shot-btn {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.8px;
-  padding: 4px 6px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.scene-shot-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--glass-border-hover);
-}
-
-.scene-shot-btn.scene-shot-danger:hover {
-  color: #ff7e7e;
-  border-color: #ff7e7e;
-}
-
-.scene-btn:hover:not(:disabled) {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: rgba(0, 212, 255, 0.14);
-}
-
-.scene-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.scene-btn-danger:hover:not(:disabled) {
-  color: #ff7272;
-  border-color: #ff7272;
-  background: rgba(255, 88, 88, 0.15);
-}
-
-.scene-progress {
-  margin-top: 8px;
-  width: 100%;
-  height: 18px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
 }
 
 #scene-progress-fill {
@@ -6635,32 +6100,6 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
   color: var(--text-secondary);
 }
 
-#scene-runtime {
-  position: fixed;
-  top: 34px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 105;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 180ms ease, visibility 180ms ease;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: #bff4ff;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(0, 212, 255, 0.36);
-  border-radius: 999px;
-  padding: 6px 14px;
-  text-shadow: 0 0 8px rgba(0, 212, 255, 0.55);
-  pointer-events: none;
-}
-
-#scene-runtime.active {
-  opacity: 1;
-  visibility: visible;
-}
-
 #control-panel.collapsed .button-grid,
 #data-panel.collapsed .data-toggle-list,
 #global-context-panel.collapsed #radio-panel,
@@ -6677,10 +6116,6 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 #cctv-panel.collapsed #cctv-meta,
 #cctv-panel.collapsed .cctv-summary-label,
 #cctv-panel.collapsed #cctv-summary,
-#scene-panel.collapsed .scene-controls,
-#scene-panel.collapsed .scene-shot-list,
-#scene-panel.collapsed .scene-progress,
-#scene-panel.collapsed #scene-status,
 #param-slider-panel.collapsed #param-sliders,
 #location-bar.collapsed .poi-row-container,
 #location-bar.collapsed .location-bar-divider,
@@ -6689,8 +6124,7 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 }
 
 #data-panel.collapsed,
-#cctv-panel.collapsed,
-#scene-panel.collapsed {
+#cctv-panel.collapsed {
   width: var(--left-collapsed-width);
 }
 
@@ -6698,8 +6132,7 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 
 #data-panel.collapsed .panel-title,
 #cctv-panel.collapsed .panel-title,
-#radio-panel.collapsed .panel-title,
-#scene-panel.collapsed .panel-title {
+#radio-panel.collapsed .panel-title {
   font-size: 8px;
   letter-spacing: 1.8px;
 }
@@ -6708,7 +6141,6 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 #data-panel.collapsed .data-panel-inner,
 #cctv-panel.collapsed .cctv-panel-inner,
 #radio-panel.collapsed .radio-panel-inner,
-#scene-panel.collapsed .scene-panel-inner,
 #param-slider-panel.collapsed,
 #location-bar.collapsed .location-inner {
   padding-bottom: 10px;
@@ -6719,42 +6151,8 @@ body.cockpit-mode #intel-hud .hud-right-edge { right: 22px; }
 #cctv-panel.collapsed .panel-header,
 #radio-panel.collapsed .panel-header,
 #global-context-panel.collapsed .panel-header,
-#scene-panel.collapsed .panel-header,
 #param-slider-panel.collapsed .param-panel-header {
   margin-bottom: 2px;
-}
-
-/* ── Recording Mode ─────────────────────────── */
-body.recording-mode #title-bar,
-body.recording-mode #style-indicator,
-body.recording-mode #top-center-actions,
-body.recording-mode #global-loading-status,
-body.recording-mode #traffic-sync-chip,
-body.recording-mode #cctv-sync-chip,
-body.recording-mode #pp-toggles,
-body.recording-mode #clean-view-exit,
-body.recording-mode #param-slider-panel,
-body.recording-mode #control-panel,
-body.recording-mode #location-bar,
-body.recording-mode #data-panel,
-body.recording-mode #cctv-panel,
-body.recording-mode #radio-panel,
-body.recording-mode #global-context-panel,
-body.recording-mode #gev-voice-control,
-body.recording-mode #scene-panel {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-body.recording-mode #scene-runtime.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* Scene playback owns layer and camera sequencing until Stop or completion. */
-body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
-  display: none !important;
 }
 
 /* ── Responsive ───────────────────────────────── */
@@ -6806,16 +6204,6 @@ body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
     transform: none;
     max-width: none;
     bottom: 120px;
-  }
-
-  #gev-voice-control {
-    right: 16px;
-    bottom: 16px;
-    min-width: 196px;
-  }
-
-  #gev-voice-detail {
-    max-width: 112px;
   }
 
   .hud-top-left,
@@ -6893,18 +6281,6 @@ body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
     min-height: 0;
   }
 
-  #scene-panel {
-    top: auto;
-    right: 16px;
-    left: 16px;
-    width: auto;
-    bottom: 12px;
-  }
-
-  #scene-panel.collapsed {
-    width: auto;
-  }
-
   #left-panel-stack {
     top: 70px;
     right: 16px;
@@ -6951,25 +6327,17 @@ body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
   }
 
   #left-panel-stack > #data-panel,
-  #left-panel-stack > #cctv-panel,
-  #left-panel-stack > #global-context-panel,
-  #left-panel-stack > #scene-panel,
-  #left-panel-stack > #data-panel.collapsed,
-  #left-panel-stack > #cctv-panel.collapsed,
-  #left-panel-stack > #global-context-panel.collapsed,
-  #left-panel-stack > #scene-panel.collapsed {
+#left-panel-stack > #cctv-panel,
+#left-panel-stack > #global-context-panel,
+#left-panel-stack > #data-panel.collapsed,
+#left-panel-stack > #cctv-panel.collapsed,
+#left-panel-stack > #global-context-panel.collapsed {
     position: relative;
     top: auto;
     right: auto;
     bottom: auto;
     left: auto;
     width: 100%;
-  }
-
-  #scene-runtime {
-    top: 16px;
-    max-width: calc(100vw - 24px);
-    text-align: center;
   }
 }
 
@@ -7001,8 +6369,7 @@ body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
 }
 
 #command-dock > #location-bar,
-#command-dock > #control-panel,
-#command-dock > #gev-voice-control {
+#command-dock > #control-panel {
   position: relative;
   inset: auto;
   width: auto;
@@ -7020,52 +6387,6 @@ body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
   grid-area: presets;
   min-width: 0;
   border-left: 1px solid rgba(123, 189, 211, 0.16);
-}
-
-#command-dock > #gev-voice-control {
-  grid-area: voice;
-  z-index: 2;
-  align-self: stretch;
-  justify-content: center;
-  min-width: 0;
-  margin: -14px 0;
-  padding: 19px 14px 12px;
-  border-color: rgba(0, 212, 255, 0.36);
-  border-radius: 12px;
-  background: rgba(8, 31, 42, 0.94);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.56),
-    0 0 26px rgba(0, 212, 255, 0.12),
-    0 0 0 1px rgba(0, 212, 255, 0.08) inset;
-}
-
-#command-dock .gev-voice-kicker {
-  position: absolute;
-  top: 6px;
-  right: 14px;
-  left: 14px;
-  overflow: hidden;
-  color: rgba(190, 221, 230, 0.52);
-  font-family: var(--font-mono);
-  font-size: 7px;
-  letter-spacing: 1.5px;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#command-dock #gev-voice-button {
-  width: 78px;
-  height: 42px;
-}
-
-#command-dock .gev-voice-readout {
-  flex: 1;
-  text-align: left;
-}
-
-#command-dock #gev-voice-detail {
-  max-width: 110px;
 }
 
 #command-dock .panel-glow {
@@ -7184,27 +6505,24 @@ body.scene-playback-mode :is(#clear-selected-layers, #reset-globe-view) {
   margin-bottom: 4px;
 }
 
-/* Keep required map attribution clear of the full-width command surface. */
-body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
+body:not(.ui-clean-view) #cesium-credits {
   bottom: calc(2vh + 7rem);
 }
 
-body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minimal'].active) #cesium-credits {
+body:not(.ui-clean-view):has(#intel-hud[data-variant='minimal'].active) #cesium-credits {
   right: 36px;
   left: auto;
   width: min(340px, calc(100vw - 72px)) !important;
   text-align: right;
 }
 
-body.ui-clean-view #command-dock,
-body.recording-mode #command-dock {
+body.ui-clean-view #command-dock {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }
 
-body.ui-clean-view #cesium-credits,
-body.recording-mode #cesium-credits {
+body.ui-clean-view #cesium-credits {
   right: auto;
   bottom: 36px;
   left: 36px;
@@ -7237,11 +6555,7 @@ body.recording-mode #cesium-credits {
     border-left: 0;
   }
 
-  #command-dock > #gev-voice-control {
-    margin: -10px 0 0;
-  }
-
-  body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
+  body:not(.ui-clean-view) #cesium-credits {
     bottom: calc(2vh + 9.5rem);
   }
 
@@ -7490,54 +6804,6 @@ body.recording-mode #cesium-credits {
   display: none;
 }
 
-#command-dock > #gev-voice-control {
-  position: relative;
-  inset: auto;
-  z-index: 3;
-  display: grid;
-  grid-template-columns: 3.2rem 1fr 3.6rem;
-  grid-template-rows: 0.8rem 2.55rem 0.8rem;
-  flex: 0 0 var(--dock-voice-width);
-  width: var(--dock-voice-width);
-  min-width: 0;
-  height: 4.9rem;
-  margin: -0.65rem 0;
-  padding: 0.3rem 0.65rem;
-  gap: 0 0.35rem;
-  overflow: hidden;
-  border-radius: var(--panel-radius);
-  transform: none;
-}
-
-#command-dock .gev-voice-kicker {
-  position: static;
-  grid-column: 2 / 4;
-  grid-row: 1;
-  align-self: center;
-  color: rgba(190, 221, 230, 0.58);
-  font-size: 0.39rem;
-  letter-spacing: 0.07rem;
-  text-align: center;
-}
-
-#command-dock #gev-voice-button {
-  grid-column: 1;
-  grid-row: 1 / 4;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  align-self: center;
-  gap: 0.15rem;
-  padding: 0;
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 0.2rem rgba(0, 212, 255, 0.06),
-    0 0 1rem rgba(0, 212, 255, 0.12);
-}
-
 #command-dock .gev-mic-orbit {
   display: grid;
   place-items: center;
@@ -7556,73 +6822,12 @@ body.recording-mode #cesium-credits {
   letter-spacing: 0.02rem;
 }
 
-#command-dock .gev-voice-visualizer {
-  grid-column: 2;
-  grid-row: 2;
-  display: flex;
-  align-items: end;
-  justify-content: center;
-  gap: 0.12rem;
-  height: 2.2rem;
-  padding: 0.2rem 0.1rem;
-  border-bottom: 1px solid rgba(54, 220, 255, 0.34);
-}
-
-#command-dock .gev-voice-visualizer span {
-  width: 0.18rem;
-  height: 0.55rem;
-  background: linear-gradient(to top, #28b9db, #71eaff);
-  box-shadow: 0 0 0.35rem rgba(54, 220, 255, 0.28);
-  transform-origin: bottom;
-}
-
-#command-dock .gev-voice-visualizer span:nth-child(3n) { height: 1.35rem; }
-#command-dock .gev-voice-visualizer span:nth-child(4n) { height: 0.95rem; }
-#command-dock .gev-voice-visualizer span:nth-child(5n) { height: 1.7rem; }
-#command-dock .gev-voice-visualizer span:nth-child(7n) { height: 0.75rem; }
-
-#command-dock #gev-voice-control[data-status='listening'] .gev-voice-visualizer span,
-#command-dock #gev-voice-control[data-status='executing'] .gev-voice-visualizer span {
-  animation: gev-voice-bar 680ms ease-in-out infinite alternate;
-  animation-delay: calc(var(--bar) * -45ms);
-}
-
-#command-dock .gev-voice-readout {
-  display: contents;
-}
-
-#command-dock #gev-voice-status {
-  grid-column: 3;
-  grid-row: 2;
-  align-self: start;
-  padding-top: 0.2rem;
-  font-size: 0.45rem;
-  text-align: right;
-}
-
-#command-dock #gev-voice-detail {
-  grid-column: 2 / 4;
-  grid-row: 3;
-  align-self: center;
-  max-width: none;
-  margin: 0;
-  font-size: 0.39rem;
-  letter-spacing: 0.08rem;
-  text-align: center;
-}
-
 @keyframes command-dock-reveal {
   from { opacity: 0; transform: translateY(0.2rem); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes gev-voice-bar {
-  from { transform: scaleY(0.35); opacity: 0.5; }
-  to { transform: scaleY(1); opacity: 1; }
-}
-
-/* Compact dock clearance keeps the reference-like low profile. */
-body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
+body:not(.ui-clean-view) #cesium-credits {
   bottom: calc(2vh + 4.7rem);
 }
 
@@ -7656,21 +6861,6 @@ body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
   #command-dock:has(#control-panel:not(.collapsed)) > #location-bar {
     flex-basis: 0;
     border: 0;
-  }
-
-  #command-dock:has(#location-bar:not(.collapsed)) > #gev-voice-control,
-  #command-dock:has(#control-panel:not(.collapsed)) > #gev-voice-control {
-    flex-basis: 4.75rem;
-    width: 4.75rem;
-  }
-
-  #command-dock:has(#location-bar:not(.collapsed)) .gev-voice-visualizer,
-  #command-dock:has(#location-bar:not(.collapsed)) .gev-voice-kicker,
-  #command-dock:has(#location-bar:not(.collapsed)) .gev-voice-readout,
-  #command-dock:has(#control-panel:not(.collapsed)) .gev-voice-visualizer,
-  #command-dock:has(#control-panel:not(.collapsed)) .gev-voice-kicker,
-  #command-dock:has(#control-panel:not(.collapsed)) .gev-voice-readout {
-    visibility: hidden;
   }
 
   #command-dock .location-search-wrap {
@@ -7736,7 +6926,6 @@ body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
 #command-dock :is(#location-bar, #control-panel):hover .panel-title{
   color: var(--accent);
 }
-
 
 
 #command-dock #control-panel .panel-header {
@@ -7857,10 +7046,6 @@ body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
   bottom: calc(100% + 1.2rem + var(--dock-lower-pinned-height));
 }
 
-#command-dock.dock-has-pinned-tray .gev-voice-error-tray {
-  bottom: calc(100% + 1.7rem + var(--dock-pinned-stack-height));
-}
-
 #command-dock .location-pill,
 #command-dock .poi-pill,
 #command-dock .btn-label {
@@ -7870,49 +7055,6 @@ body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
 #command-dock #location-search,
 #command-dock #location-search.expanded {
   font-size: 0.68rem;
-}
-
-#command-dock > #gev-voice-control {
-  grid-template-columns: 3rem minmax(0, 1fr);
-  grid-template-rows: 0.8rem 2.25rem 0.85rem;
-  gap: 0.12rem 0.28rem;
-  width: var(--dock-voice-width);
-  flex-basis: var(--dock-voice-width);
-  height: 5.35rem;
-  margin-top: -0.97rem;
-  margin-bottom: -0.97rem;
-  padding: 0.32rem 0.38rem 0.3rem;
-  overflow: visible;
-}
-
-#command-dock .gev-voice-heading {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.35rem;
-  min-width: 0;
-}
-
-#command-dock .gev-voice-kicker {
-  position: static;
-  padding-right: 0;
-  font-size: 0.46rem;
-  font-weight: 500;
-  letter-spacing: 0.08rem;
-}
-
-#command-dock #gev-voice-button {
-  grid-column: 1;
-  grid-row: 1 / 4;
-  align-self: center;
-  width: 2.65rem;
-  height: 4.15rem;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
 }
 
 #command-dock .gev-mic-orbit {
@@ -7934,154 +7076,8 @@ body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
   letter-spacing: 0.035rem;
 }
 
-#command-dock .gev-voice-visualizer {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: stretch;
-  box-sizing: border-box;
-  height: 2.25rem;
-  padding: 0.3rem 0.05rem 0.12rem;
-  overflow: hidden;
-  visibility: visible;
-  opacity: 0.54;
-  transform: none;
-  transition: opacity 180ms ease;
-}
-
-#command-dock #gev-voice-control[data-status='connecting'] .gev-voice-visualizer,
-#command-dock #gev-voice-control[data-status='listening'] .gev-voice-visualizer,
-#command-dock #gev-voice-control[data-status='executing'] .gev-voice-visualizer {
-  visibility: visible;
-  opacity: 1;
-  transform: none;
-}
-
-#command-dock #gev-voice-status {
-  position: static;
-  width: auto;
-  padding-top: 0;
-  color: var(--accent);
-  font-size: 0.43rem;
-  text-align: left;
-}
-
-#command-dock #gev-voice-detail {
-  grid-column: 2;
-  grid-row: 3;
-  align-self: start;
-  padding-top: 0.12rem;
-  max-width: 100%;
-  overflow: hidden;
-  font-size: 0.39rem;
-  font-weight: 500;
-  letter-spacing: 0.035rem;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#command-dock #gev-voice-control[data-status='connecting'] #gev-voice-detail,
-#command-dock #gev-voice-control[data-status='listening'] #gev-voice-detail,
-#command-dock #gev-voice-control[data-status='executing'] #gev-voice-detail {
-  grid-row: 3;
-  font-size: 0.43rem;
-}
-
-#command-dock #gev-voice-control[data-status='error'] {
-  display: grid;
-  align-items: initial;
-  width: var(--dock-voice-width);
-  border-color: rgba(255, 92, 110, 0.58);
-  border-radius: 0.4rem;
-}
-
-#command-dock #gev-voice-control[data-status='error'] .gev-voice-readout {
-  display: contents;
-}
-
-#command-dock #gev-voice-control[data-status='error'] #gev-voice-detail {
-  max-width: none;
-  overflow: hidden;
-  color: #ffb4bd;
-  line-height: 1.2;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#command-dock .gev-voice-error-tray {
-  position: absolute;
-  bottom: calc(100% + 0.7rem);
-  left: 50%;
-  z-index: 8;
-  width: clamp(19rem, 29vw, 24rem);
-  padding: 0.85rem 0.9rem;
-  visibility: hidden;
-  opacity: 0;
-  color: rgba(255, 220, 224, 0.92);
-  background: rgba(34, 10, 16, 0.96);
-  border: 1px solid rgba(255, 92, 110, 0.5);
-  border-radius: 0.42rem;
-  box-shadow: 0 0.9rem 2.2rem rgba(0, 0, 0, 0.62), 0 0 1.4rem rgba(255, 92, 110, 0.08);
-  backdrop-filter: blur(28px) saturate(1.25);
-  -webkit-backdrop-filter: blur(28px) saturate(1.25);
-  pointer-events: none;
-  transform: translate(-50%, 0.55rem) scale(0.985);
-  transform-origin: bottom center;
-  transition: opacity 180ms ease, visibility 180ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-#command-dock #gev-voice-control[data-status='error']:not(.error-dismissed) .gev-voice-error-tray {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0) scale(1);
-}
-
-#command-dock .gev-voice-error-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  color: #ff8f9d;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.1rem;
-}
-
-#command-dock .gev-voice-error-dismiss {
-  padding: 0.25rem 0.42rem;
-  color: rgba(255, 220, 224, 0.72);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 143, 157, 0.32);
-  border-radius: 0.2rem;
-  font-family: var(--font-mono);
-  font-size: 0.43rem;
-  letter-spacing: 0.06rem;
-  cursor: pointer;
-}
-
-#command-dock #gev-voice-error-detail {
-  margin-top: 0.65rem;
-  color: rgba(255, 232, 235, 0.92);
-  font-family: var(--font-sans);
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
-#command-dock .gev-voice-error-hint {
-  margin-top: 0.5rem;
-  color: rgba(255, 196, 203, 0.58);
-  font-family: var(--font-mono);
-  font-size: 0.52rem;
-  line-height: 1.45;
-  letter-spacing: 0.035rem;
-}
-
-/* The compact dock leaves both lower corners free for required attribution and telemetry. */
-body:not(.ui-clean-view):not(.recording-mode) #cesium-credits,
-body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minimal'].active) #cesium-credits {
+body:not(.ui-clean-view) #cesium-credits,
+body:not(.ui-clean-view):has(#intel-hud[data-variant='minimal'].active) #cesium-credits {
   right: auto;
   bottom: 0.75rem;
   left: 1.5rem;
@@ -8111,15 +7107,11 @@ body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minim
 }
 
 @media (max-width: 900px) {
-  body:not(.ui-clean-view):not(.recording-mode) #cesium-credits,
-  body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minimal'].active) #cesium-credits {
+  body:not(.ui-clean-view) #cesium-credits,
+body:not(.ui-clean-view):has(#intel-hud[data-variant='minimal'].active) #cesium-credits {
     bottom: calc(2vh + 5rem);
     left: 0.75rem;
     max-width: calc(100vw - 1.5rem);
-  }
-
-  #command-dock .gev-voice-error-tray {
-    width: min(24rem, calc(100vw - 1.5rem));
   }
 }
 
@@ -8290,21 +7282,6 @@ body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minim
     border: inherit;
   }
 
-  #command-dock:has(#location-bar:not(.collapsed)) > #gev-voice-control,
-  #command-dock:has(#control-panel:not(.collapsed)) > #gev-voice-control {
-    flex-basis: var(--dock-voice-width);
-    width: var(--dock-voice-width);
-  }
-
-  #command-dock:has(#location-bar:not(.collapsed)) .gev-voice-visualizer,
-  #command-dock:has(#location-bar:not(.collapsed)) .gev-voice-kicker,
-  #command-dock:has(#location-bar:not(.collapsed)) .gev-voice-readout,
-  #command-dock:has(#control-panel:not(.collapsed)) .gev-voice-visualizer,
-  #command-dock:has(#control-panel:not(.collapsed)) .gev-voice-kicker,
-  #command-dock:has(#control-panel:not(.collapsed)) .gev-voice-readout {
-    visibility: visible;
-  }
-
   #command-dock .dock-popover-content {
     width: var(--dock-popover-mobile-width);
   }
@@ -8458,41 +7435,6 @@ body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minim
   height: 1.15rem;
 }
 
-/* Five-pixel standby baseline; live microphone analysis sets --audio-level. */
-#command-dock .gev-voice-visualizer span,
-#command-dock .gev-voice-visualizer span:nth-child(3n),
-#command-dock .gev-voice-visualizer span:nth-child(4n),
-#command-dock .gev-voice-visualizer span:nth-child(5n),
-#command-dock .gev-voice-visualizer span:nth-child(7n) {
-  height: var(--audio-level, 5px);
-  opacity: var(--audio-opacity, 0.56);
-  animation: none;
-  transition: height 70ms linear, opacity 90ms linear;
-}
-
-#command-dock #gev-voice-control[data-status='listening'] .gev-voice-visualizer span,
-#command-dock #gev-voice-control[data-status='executing'] .gev-voice-visualizer span {
-  animation: none;
-}
-
-#command-dock #gev-voice-control[data-speaker='user'] :is(#gev-voice-status, #gev-voice-detail) {
-  color: #ffbf69;
-}
-
-#command-dock #gev-voice-control[data-speaker='user'] .gev-voice-visualizer span {
-  background: linear-gradient(to top, #d98a35, #ffcf8a);
-  box-shadow: 0 0 0.35rem rgba(255, 191, 105, 0.32);
-}
-
-#command-dock #gev-voice-control[data-speaker='ai'] :is(#gev-voice-status, #gev-voice-detail) {
-  color: var(--accent);
-}
-
-#command-dock #gev-voice-control[data-speaker='ai'] .gev-voice-visualizer span {
-  background: linear-gradient(to top, #28b9db, #71eaff);
-  box-shadow: 0 0 0.35rem rgba(54, 220, 255, 0.28);
-}
-
 /* Center every slide-up tray on the complete unified dock, not its side wing. */
 #command-dock #location-bar .dock-popover-content {
   left: calc((var(--dock-unified-width) - var(--dock-location-open)) / 2);
@@ -8564,27 +7506,6 @@ body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minim
   filter: grayscale(1) saturate(0) brightness(1.65);
   opacity: 0.68;
   transition: filter var(--transition-fast), opacity var(--transition-fast);
-}
-
-#command-dock #gev-voice-button:hover .gev-mic-orbit,
-#command-dock #gev-voice-control:is(
-  [data-status='connecting'],
-  [data-status='listening']:not([data-microphone='muted']),
-  [data-status='executing']
-) .gev-mic-orbit {
-  background: rgba(0, 212, 255, 0.06);
-  border-color: rgba(0, 212, 255, 0.48);
-  box-shadow: 0 0 0 0.18rem rgba(0, 212, 255, 0.06), 0 0 0.9rem rgba(0, 212, 255, 0.12);
-}
-
-#command-dock #gev-voice-button:hover .gev-mic-orbit img,
-#command-dock #gev-voice-control:is(
-  [data-status='connecting'],
-  [data-status='listening']:not([data-microphone='muted']),
-  [data-status='executing']
-) .gev-mic-orbit img {
-  filter: none;
-  opacity: 1;
 }
 
 /* Match compact dock wings to the glass treatment used by left-panel buttons. */
@@ -8681,69 +7602,7 @@ body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minim
   display: none;
 }
 
-#gev-voice-control .gev-voice-help-tray {
-  position: absolute;
-  bottom: calc(100% + 0.7rem);
-  left: 50%;
-  z-index: 7;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.22rem;
-  box-sizing: border-box;
-  width: max-content;
-  max-width: min(22rem, calc(100vw - 2rem));
-  padding: 0.62rem 0.72rem;
-  visibility: hidden;
-  opacity: 0;
-  color: rgba(223, 245, 250, 0.92);
-  background: rgba(7, 22, 31, 0.96);
-  border: 1px solid rgba(54, 220, 255, 0.34);
-  border-radius: 0.38rem;
-  box-shadow:
-    0 0.85rem 2rem rgba(0, 0, 0, 0.58),
-    0 0 1.2rem rgba(0, 212, 255, 0.08);
-  backdrop-filter: blur(24px) saturate(1.3);
-  -webkit-backdrop-filter: blur(24px) saturate(1.3);
-  pointer-events: none;
-  transform: translate(-50%, 0.65rem) scale(0.985);
-  transform-origin: bottom center;
-  transition:
-    opacity 160ms ease,
-    visibility 160ms ease,
-    transform 210ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-#gev-voice-control .gev-voice-help-kicker {
-  color: rgba(54, 220, 255, 0.72);
-  font-family: var(--font-mono);
-  font-size: 0.46rem;
-  font-weight: 600;
-  letter-spacing: 0.1rem;
-}
-
-#gev-voice-control .gev-voice-help-detail {
-  font-family: var(--font-sans);
-  font-size: 0.7rem;
-  line-height: 1.35;
-  white-space: nowrap;
-}
-
-#gev-voice-control:not([data-status='error']):hover .gev-voice-help-tray,
-#gev-voice-control:not([data-status='error']) #gev-voice-button:focus-visible ~ .gev-voice-help-tray {
-  visibility: visible;
-  opacity: 1;
-  transform: translate(-50%, 0) scale(1);
-}
-
-#command-dock.dock-has-pinned-tray .gev-voice-help-tray {
-  bottom: calc(100% + 1.7rem + var(--dock-pinned-stack-height));
-}
-
 @media (prefers-reduced-motion: reduce) {
-  #gev-voice-control .gev-voice-help-tray {
-    transition: none;
-  }
   .radio-tuner-needle,
   .radio-tuner-tick {
     transition: none;
@@ -8767,397 +7626,4 @@ body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minim
 
 #command-dock #control-panel .panel-header::after {
   background: linear-gradient(90deg, rgba(232, 234, 237, 0), rgba(232, 234, 237, 0.24));
-}
-
-/* ------------------------------------------------------------------ *
- * Voice cost control — model-tier toggle + running session estimate.
- * Appended (not woven into the dock passes above) so the three existing
- * #gev-voice-control cascades stay untouched; these rules only add the
- * new .gev-voice-cost cluster inside the existing .gev-voice-heading row.
- * ------------------------------------------------------------------ */
-.gev-voice-cost {
-  display: flex;
-  align-items: center;
-  gap: 0.22rem;
-  margin-left: auto; /* pin right; kicker + status keep their left cluster */
-  flex: 0 0 auto;
-}
-
-.gev-voice-tier-btn {
-  padding: 0 0.24rem;
-  height: 0.72rem;
-  min-width: 1.55rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 212, 255, 0.06);
-  border: 1px solid rgba(0, 212, 255, 0.34);
-  border-radius: 0.18rem;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.4rem;
-  letter-spacing: 0.045rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast),
-    background var(--transition-fast);
-}
-
-.gev-voice-tier-btn:hover {
-  color: var(--text-primary);
-  border-color: rgba(0, 212, 255, 0.6);
-  background: rgba(0, 212, 255, 0.12);
-}
-
-/* MINI engaged — amber, distinct from the cyan default so the cheaper tier
-   is legible at a glance without reading the label. */
-.gev-voice-tier-btn[aria-pressed='true'] {
-  color: #ffc46b;
-  border-color: rgba(255, 196, 107, 0.55);
-  background: rgba(255, 196, 107, 0.12);
-}
-
-.gev-voice-cost-value {
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 0.4rem;
-  letter-spacing: 0.02rem;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  transition: color var(--transition-fast);
-}
-
-.gev-voice-cost-value[data-level='warn'] {
-  color: #ffc46b;
-}
-
-.gev-voice-cost-value[data-level='cap'] {
-  color: #ff6b6b;
-  font-weight: 600;
-}
-
-/* The dock heading row is 0.8rem tall; keep the cluster inside it. */
-#command-dock .gev-voice-cost {
-  max-height: 0.8rem;
-}
-
-/* The dock collapses the kicker/readout when a tray is open — the cost
-   cluster follows the same rule so the row never overflows. */
-#command-dock.tray-open .gev-voice-cost {
-  display: none;
-}
-
-/* ── First-run mission launcher ───────────────────────────────────
-   Compact and non-modal: it gives a new visitor a meaningful starting
-   choice without blocking manual map interaction or spending API quota. */
-#first-run-launcher {
-  position: fixed;
-  z-index: 175;
-  top: 50%;
-  left: 50%;
-  width: min(34rem, calc(100vw - 2rem));
-  /* Five tiles do not fit a short landscape phone (667 x 390), where the card
-     would otherwise render past BOTH ends of the viewport. Cap it to the
-     viewport and let the mission list scroll inside — the heading, the checkbox
-     and the status line must stay reachable at every height. */
-  max-height: calc(100vh - 1.5rem);
-  max-height: calc(100dvh - 1.5rem);
-  display: flex;
-  flex-direction: column;
-  padding: 1.15rem;
-  overflow: hidden;
-  color: var(--text-primary);
-  background:
-    linear-gradient(145deg, rgba(10, 27, 37, 0.97), rgba(7, 13, 22, 0.95)),
-    rgba(7, 17, 25, 0.96);
-  border: 1px solid rgba(54, 220, 255, 0.42);
-  border-radius: 0.65rem;
-  box-shadow:
-    0 1.4rem 4.5rem rgba(0, 0, 0, 0.72),
-    0 0 2.5rem rgba(0, 212, 255, 0.09),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
-  backdrop-filter: blur(28px) saturate(1.25);
-  -webkit-backdrop-filter: blur(28px) saturate(1.25);
-  opacity: 0;
-  transform: translate(-50%, calc(-50% + 0.8rem)) scale(0.985);
-  transition: opacity 220ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  /* Inert until revealed AND again while fading out, so a click during the
-     dismiss animation cannot launch a second mission behind the fade. */
-  pointer-events: none;
-}
-
-/* An AUTHOR `display` on this id beats the UA's `[hidden] { display: none }` in
-   the cascade, so the flex above would otherwise leave the card in the
-   accessibility tree from page parse until it is revealed — or, on a share
-   link, until it is removed. Restore the attribute's meaning explicitly. */
-#first-run-launcher[hidden] {
-  display: none;
-}
-
-#first-run-launcher.visible {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-  pointer-events: auto;
-}
-
-.first-run-scanline {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(54, 220, 255, 0.8), transparent);
-  box-shadow: 0 0 1rem rgba(54, 220, 255, 0.45);
-  pointer-events: none;
-}
-
-.first-run-header,
-.first-run-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  color: rgba(171, 210, 220, 0.6);
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.1rem;
-  text-transform: uppercase;
-}
-
-.first-run-kicker { color: rgba(54, 220, 255, 0.86); }
-
-#first-run-launcher h2 {
-  margin-top: 0.6rem;
-  font-family: var(--font-mono);
-  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
-  font-weight: 500;
-  letter-spacing: -0.045rem;
-}
-
-#first-run-description {
-  max-width: 29rem;
-  margin-top: 0.3rem;
-  color: rgba(215, 231, 235, 0.66);
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-.first-run-choices {
-  display: grid;
-  gap: 0.42rem;
-  margin-top: 1rem;
-  /* The one part of the card allowed to scroll when the viewport is too short.
-     min-height:0 is what actually lets this flex child shrink below its content. */
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scroll-behavior: smooth;
-  /* A visible, non-overlaying affordance that the list continues. */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(54, 220, 255, 0.45) transparent;
-  scrollbar-gutter: stable;
-}
-
-.first-run-choices::-webkit-scrollbar { width: 6px; }
-.first-run-choices::-webkit-scrollbar-thumb {
-  background: rgba(54, 220, 255, 0.45);
-  border-radius: 3px;
-}
-
-.first-run-choices button {
-  display: grid;
-  grid-template-columns: 1.7rem 1fr 1.3rem;
-  align-items: center;
-  gap: 0.7rem;
-  width: 100%;
-  min-height: 3.55rem;
-  padding: 0.6rem 0.7rem;
-  color: rgba(225, 244, 248, 0.92);
-  text-align: left;
-  background: rgba(29, 69, 81, 0.18);
-  border: 1px solid rgba(100, 200, 220, 0.18);
-  border-radius: 0.42rem;
-  cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
-}
-
-.first-run-choices button:hover,
-.first-run-choices button:focus-visible {
-  background: rgba(25, 151, 178, 0.16);
-  border-color: rgba(54, 220, 255, 0.62);
-  outline: none;
-  transform: translateX(2px);
-}
-
-/* aria-disabled, not :disabled — the JS keeps the buttons focusable while a
-   mission runs so the keyboard is never dumped out of the launcher mid-flight. */
-.first-run-choices button[aria-disabled='true'] {
-  cursor: wait;
-  opacity: 0.48;
-  transform: none;
-  pointer-events: none;
-}
-
-.first-run-choices button > .material-symbols-outlined:first-child {
-  color: #55dff5;
-  font-size: 1.35rem;
-}
-
-.first-run-choices button > span:nth-child(2) {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.first-run-choices strong {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08rem;
-}
-
-.first-run-choices small {
-  color: rgba(198, 220, 226, 0.55);
-  font-size: 0.66rem;
-}
-
-.first-run-arrow {
-  color: rgba(54, 220, 255, 0.4);
-  font-size: 1rem;
-  transition: transform var(--transition-fast), color var(--transition-fast);
-}
-
-.first-run-choices button:hover .first-run-arrow,
-.first-run-choices button:focus-visible .first-run-arrow {
-  color: rgba(54, 220, 255, 0.9);
-  transform: translateX(2px);
-}
-
-/* Ordered after the shared button rule rather than shouting !important at it. */
-.first-run-choices button.first-run-explore {
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.first-run-footer {
-  margin-top: 0.85rem;
-  font-size: 0.48rem;
-  letter-spacing: 0.055rem;
-}
-
-.first-run-suppress {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: rgba(199, 225, 231, 0.66);
-  text-transform: none;
-  font-size: 0.62rem;
-  letter-spacing: 0.02rem;
-  cursor: pointer;
-}
-
-.first-run-suppress input {
-  width: 0.82rem;
-  height: 0.82rem;
-  margin: 0;
-  accent-color: #36dcff;
-  cursor: pointer;
-}
-
-.first-run-suppress:hover { color: rgba(225, 244, 248, 0.92); }
-
-/* The live region carries mission progress and failures, so it owns a full row
-   and reserves its height — otherwise the card resizes as it speaks. */
-.first-run-note {
-  min-height: 1.1rem;
-  margin-top: 0.5rem;
-  color: rgba(199, 225, 231, 0.62);
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  line-height: 1.35;
-}
-
-#first-run-launcher[data-state='loading'] .first-run-note {
-  color: rgba(54, 220, 255, 0.85);
-}
-
-/* Every surface that claims the screen hides the launcher. This list is the CSS
-   half of the ESC arbitration: src/firstRunExperience.js watches these same
-   classes and makes the launcher step aside, so a hidden card is never left
-   holding a keyboard handler. Keep the two lists in step —
-   EXCLUSIVE_SURFACE_CLASSES pins them together. */
-body.ui-clean-view #first-run-launcher,
-body.recording-mode #first-run-launcher,
-body.cockpit-mode #first-run-launcher,
-body.scene-playback-mode #first-run-launcher {
-  display: none;
-}
-
-@media (max-width: 620px) {
-  #first-run-launcher {
-    top: auto;
-    bottom: 5.8rem;
-    padding: 0.9rem;
-    transform: translate(-50%, 0.8rem) scale(0.985);
-  }
-
-  #first-run-launcher.visible { transform: translate(-50%, 0) scale(1); }
-  /* Five tiles have to clear the dock on a 375 x 812 phone, so the rows tighten
-     and the redundant "ESC to dismiss" hint (no ESC key on a phone) drops. */
-  #first-run-launcher h2 { margin-top: 0.45rem; }
-  #first-run-description { margin-top: 0.25rem; font-size: 0.72rem; }
-  .first-run-choices { margin-top: 0.75rem; }
-  .first-run-choices button { min-height: 3rem; padding: 0.45rem 0.6rem; }
-  .first-run-choices small { font-size: 0.62rem; }
-  .first-run-footer > span:last-child { display: none; }
-}
-
-/* Short viewports — landscape phones, small laptop windows. The chrome tightens
-   so the mission list keeps a usable share of the height. The intro line STAYS:
-   it is the only copy that says what this thing is, and with four tiles it
-   fits. (It was dropped here while there were five; the tile that went is
-   exactly why it can come back.) */
-@media (max-height: 620px) {
-  #first-run-launcher { padding: 0.75rem 0.85rem; }
-  #first-run-launcher h2 { margin-top: 0.3rem; font-size: 1.1rem; }
-  #first-run-description { margin-top: 0.2rem; font-size: 0.7rem; line-height: 1.4; }
-  .first-run-choices { margin-top: 0.55rem; }
-  .first-run-choices button { min-height: 2.7rem; padding: 0.36rem 0.6rem; }
-  .first-run-choices strong { font-size: 0.68rem; }
-  .first-run-choices small { font-size: 0.6rem; }
-  .first-run-footer { margin-top: 0.5rem; }
-  .first-run-note { margin-top: 0.3rem; min-height: 0; }
-}
-
-/* A soft edge on the list, so a tile cut by the fold reads as "more below"
-   rather than as a rendering seam. Gated on `data-scrollable`, which the JS sets
-   only when the list ACTUALLY overflows — a fade on a list that fits would
-   promise content that is not there, which is the opposite of the affordance
-   it is meant to be. Decorative only: the list scrolls under it. */
-.first-run-choices[data-scrollable='true'] {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.4rem), transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 1.4rem), transparent 100%);
-}
-
-/* Scrolled to the end, there is nothing left to promise, so the fade lifts.
-   Browsers without scroll-driven animations keep the static fade, which is
-   still honest — there IS more list, it is just above rather than below. */
-@supports (animation-timeline: scroll(self block)) {
-  .first-run-choices[data-scrollable='true'] {
-    animation: first-run-scroll-fade linear both;
-    animation-timeline: scroll(self block);
-    animation-range: contain 80% contain 100%;
-  }
-}
-
-@keyframes first-run-scroll-fade {
-  to {
-    -webkit-mask-image: linear-gradient(to bottom, #000 100%, transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 100%, transparent 100%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #first-run-launcher,
-  .first-run-choices button,
-  .first-run-arrow { transition: none; }
-  /* Scrolling a tile into view must not animate either. */
-  .first-run-choices { scroll-behavior: auto; }
 }

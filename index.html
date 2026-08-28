@@ -25,7 +25,7 @@
   <!-- Title -->
   <div id="title-bar">
     <div class="title-glow"></div>
-    <h1><span class="title-logo brand-logo" data-logo-gaze data-logo-src="/logo.svg" aria-hidden="true"><img src="/logo.svg" alt="" /></span> <span>GOD'S EYE <span class="title-accent">VIEW</span></span></h1>
+    <h1><span class="title-logo brand-logo" aria-hidden="true"><img src="/logo.svg" alt="" /></span> <span>GOD'S EYE <span class="title-accent">VIEW</span></span></h1>
     <p class="subtitle">NO PLACE LEFT BEHIND</p>
   </div>
 
@@ -62,11 +62,6 @@
 
   <!-- Toast notification -->
   <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-
-  <!-- Safe frame guides for recording composition -->
-  <div id="safe-frame-overlay">
-    <div id="safe-frame-box"></div>
-  </div>
 
   <!-- Aircraft first-person view. It can be entered from the visible view switcher. -->
   <section id="cockpit-hud" aria-label="Aircraft cockpit view" hidden>
@@ -643,45 +638,6 @@
     </div>
   </div>
 
-  <!-- Scene Director Panel -->
-  <div id="scene-panel" class="panel-collapsible collapsed" data-panel-id="scene-panel">
-    <div class="panel-glow"></div>
-    <div class="scene-panel-inner">
-      <div class="panel-header">
-        <span class="panel-title">SCENES</span>
-        <span class="panel-divider"></span>
-        <button class="panel-collapse-btn" data-collapse-target="scene-panel" title="Collapse panel">+</button>
-      </div>
-      <div class="scene-controls">
-        <select id="scene-select" aria-label="Scene recipe"></select>
-        <button id="scene-new-btn" class="scene-btn">NEW</button>
-        <button id="scene-delete-btn" class="scene-btn scene-btn-danger">DEL</button>
-      </div>
-      <div class="scene-controls">
-        <button id="scene-capture-btn" class="scene-btn">CAPTURE SHOT</button>
-        <button id="scene-update-shot-btn" class="scene-btn">UPDATE SHOT</button>
-      </div>
-      <div id="scene-shot-list" class="scene-shot-list"></div>
-      <div class="scene-controls">
-        <button id="scene-start-btn" class="scene-btn">START</button>
-        <button id="scene-stop-btn" class="scene-btn scene-btn-danger">STOP</button>
-        <button id="scene-next-btn" class="scene-btn">NEXT</button>
-      </div>
-      <div class="scene-controls">
-        <button id="scene-export-btn" class="scene-btn">EXPORT PRESETS</button>
-        <button id="scene-import-btn" class="scene-btn">IMPORT</button>
-        <button id="scene-download-btn" class="scene-btn">RUN LOG</button>
-        <input type="file" id="scene-import-file" accept="application/json,.json" hidden />
-      </div>
-      <div class="scene-progress">
-        <div id="scene-progress-fill">0%</div>
-      </div>
-      <div id="scene-status">Ready</div>
-    </div>
-  </div>
-
-  </div>
-
   <!-- Global Context is deliberately independent from the left layer accordion. -->
   <aside id="right-context-rail">
     <div id="global-context-panel" class="panel-collapsible collapsed" data-panel-id="global-context-panel">
@@ -827,60 +783,6 @@
     </div>
   </aside>
 
-  <div id="scene-runtime"></div>
-
-  <!-- Explicit mission choice on a fresh session. Live feeds are not auto-enabled
-       until the visitor asks; shared links skip this surface entirely. It returns
-       every session until "Don't show this again" is ticked — see
-       src/firstRunExperience.js for the full show policy. -->
-  <aside id="first-run-launcher" role="dialog" aria-labelledby="first-run-title" aria-describedby="first-run-description" hidden>
-    <div class="first-run-scanline" aria-hidden="true"></div>
-    <header class="first-run-header">
-      <span class="first-run-kicker">MISSION CONTROL · FIRST LAUNCH</span>
-    </header>
-    <h2 id="first-run-title">Choose your first view</h2>
-    <!-- The card's one persuasive line, final and VERBATIM (2026-08-23)
-         — including the unspaced em dash. The arc it has to carry: this looks
-         like something you should not have access to → the sources are all
-         public → the data is real. Tile subcopy stays purely functional. -->
-    <p id="first-run-description">It feels like a forbidden cockpit—then you realize the sources are public and the data is real.</p>
-    <div class="first-run-choices">
-      <button type="button" data-first-run-choice="contacts">
-        <span class="material-symbols-outlined" aria-hidden="true">radar</span>
-        <span><strong>LIVE CONTACTS</strong><small>Aircraft, vessels and nearby intelligence</small></span>
-        <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
-      </button>
-      <button type="button" data-first-run-choice="space-missions">
-        <span class="material-symbols-outlined" aria-hidden="true">rocket_launch</span>
-        <span><strong>SPACE MISSIONS</strong><small>Launches, spacecraft and orbital context</small></span>
-        <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
-      </button>
-      <button type="button" data-first-run-choice="environmental">
-        <span class="material-symbols-outlined" aria-hidden="true">local_fire_department</span>
-        <!-- Title text is painted from ENVIRONMENTAL_LABEL_CHOICE at init. -->
-        <!-- Subcopy names BOTH feeds this tile turns on, because the launcher
-             optimizes for the fully configured experience (product decision,
-             2026-08-23) — see the mission table in src/firstRunExperience.js. -->
-        <span><strong data-first-run-environmental-title>ENVIRONMENTAL</strong><small>Live earthquakes and active fires, from USGS and NASA</small></span>
-        <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
-      </button>
-      <button type="button" class="first-run-explore" data-first-run-choice="explore">
-        <span class="material-symbols-outlined" aria-hidden="true">public</span>
-        <span><strong>EXPLORE MANUALLY</strong><small>Begin with a clean globe</small></span>
-        <span class="material-symbols-outlined first-run-arrow" aria-hidden="true">arrow_forward</span>
-      </button>
-    </div>
-    <div class="first-run-footer">
-      <label class="first-run-suppress">
-        <input type="checkbox" data-first-run-suppress />
-        <span>Don't show this again</span>
-      </label>
-      <span>ESC to dismiss</span>
-    </div>
-    <!-- Kept out of the footer row: it swaps to mission progress and errors, and
-         a live region that also holds layout makes the row jump as it speaks. -->
-    <p class="first-run-note" data-first-run-status role="status" aria-live="polite">Tip: press 1–7 to sweep the visual styles.</p>
-  </aside>
 
   <!-- Intelligence HUD Overlay -->
   <div id="intel-hud"></div>
@@ -888,7 +790,7 @@
   <!-- Loading screen -->
   <div id="loading-screen">
     <div class="loader-content">
-      <span class="loader-logo brand-logo" data-logo-gaze data-logo-src="/logo.svg" aria-hidden="true"><img src="/logo.svg" alt="" /></span>
+      <span class="loader-logo brand-logo" aria-hidden="true"><img src="/logo.svg" alt="" /></span>
       <h2>GOD'S EYE <span class="title-accent">VIEW</span></h2>
       <p class="loader-status">Initializing photorealistic world...</p>
     </div>

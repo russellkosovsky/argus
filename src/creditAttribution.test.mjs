@@ -192,10 +192,9 @@ const RULES = flattenRules(css);
 const RECOGNIZED = new Set([
   // credit
   '#cesium-credits',
-  'body:not(.ui-clean-view):not(.recording-mode) #cesium-credits',
-  "body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minimal'].active) #cesium-credits",
+  'body:not(.ui-clean-view) #cesium-credits',
+  "body:not(.ui-clean-view):has(#intel-hud[data-variant='minimal'].active) #cesium-credits",
   'body.ui-clean-view #cesium-credits',
-  'body.recording-mode #cesium-credits',
   // dock
   '#command-dock',
   '#command-dock:has(#location-bar:not(.collapsed))',
@@ -325,8 +324,8 @@ function toPx(value, viewportHeight, where) {
 const WIDTHS = [1440, 1024, 980, 900, 830, 800, 760, 721, 720, 700, 640, 600, 480, 375];
 const HEIGHTS = [500, 560, 640, 700, 800, 900, 1000, 1080, 1200, 1440, 1600];
 
-const CREDIT_SELECTORS = ['#cesium-credits', 'body:not(.ui-clean-view):not(.recording-mode) #cesium-credits'];
-const MINIMAL_HUD_CREDIT = "body:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minimal'].active) #cesium-credits";
+const CREDIT_SELECTORS = ['#cesium-credits', 'body:not(.ui-clean-view) #cesium-credits'];
+const MINIMAL_HUD_CREDIT = "body:not(.ui-clean-view):has(#intel-hud[data-variant='minimal'].active) #cesium-credits";
 const TRAY_ORDINARY = ['#command-dock .dock-popover-content', '#command-dock #location-bar .dock-popover-content'];
 const TRAY_SCENARIOS = [
   { name: 'ordinary tray', offset: TRAY_ORDINARY },
@@ -590,5 +589,5 @@ test('the credit line is never suppressed to make room', () => {
     assert.doesNotMatch(block, /visibility\s*:\s*hidden/, 'the credit must never be hidden');
     assert.doesNotMatch(block, /opacity\s*:\s*0(\D|$)/, 'the credit must never be faded out');
   }
-  assert.match(css, /body\.ui-clean-view #cesium-credits,\s*\n\s*body\.recording-mode #cesium-credits \{[^}]*bottom: 36px;/);
+  assert.match(css, /body\.ui-clean-view #cesium-credits \{[^}]*bottom: 36px;/);
 });
