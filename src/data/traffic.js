@@ -1638,6 +1638,7 @@ function renderRoadsForAltitude(roads, altitude, label, trace = null) {
     spawnDotsForRoad(road, altitude, budget);
     if (_dots.length >= MAX_DOTS) break;
   }
+  syncTrafficRenderHold();
 
   const renderMetrics = state ? {
     renderId,
@@ -2148,6 +2149,16 @@ async function loadRoadsForBounds(bounds, altitude, trace = null) {
 
 // ─── Cleanup ───────────────────────────────────────────────
 
+/**
+ * Continuous render is needed exactly while dots are lerping along roads.
+ * Above the activation altitude clearDots() empties the array, so a parked
+ * camera at globe view costs nothing (previously: 60 fps animating zero dots).
+ */
+function syncTrafficRenderHold() {
+  if (_enabled && _dots.length > 0) holdContinuousRender('traffic');
+  else releaseContinuousRender('traffic');
+}
+
 /** Remove all point primitives and reset dot/road arrays and counters. */
 function clearDots() {
   if (_pointCollection) _pointCollection.removeAll();
@@ -2157,6 +2168,7 @@ function clearDots() {
   _count = 0;
   _bucketCounts = { free: 0, slow: 0, jam: 0, sim: 0 };
   _closedRoads = 0;
+  syncTrafficRenderHold();
 }
 
 // ─── Data Layer Interface ──────────────────────────────────
@@ -2236,7 +2248,7 @@ const trafficLayer = {
    */
   enable(viewer) {
     _enabled = true;
-    holdContinuousRender('traffic'); // per-frame animator (perf wave 2)
+    syncTrafficRenderHold(); // dots animate per frame — hold only while any exist
     _lastAnimTime = 0;
     _pointCollection.show = true;
 

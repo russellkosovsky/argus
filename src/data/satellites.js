@@ -30,7 +30,7 @@ import {
   refreshTrackedSubjectContext,
   selectTrackedSubjectContext,
 } from './contextStore.js';
-import { holdContinuousRender, releaseContinuousRender } from '../renderGovernor.js';
+import { holdContinuousRender, releaseContinuousRender, createRenderDriver } from '../renderGovernor.js';
 import { isExplicitLayerStateOrigin } from './layerState.js';
 
 /**
@@ -1219,9 +1219,39 @@ function _removeDenseCatalog() {
  * - tracked satellite's point primitive per frame (WS-D2),
  * - orbit ring GMST re-alignment every ~1s (WS-D1).
  */
+/** Driver cadence while untracked; dense mode retunes to 80 ms below. */
+const SAT_DRIVER_MS = 250;
+const SAT_DENSE_DRIVER_MS = 80;
+/** Below this camera height with nothing tracked, freeze propagation — the
+ *  points are effectively invisible context and the camera is looking at
+ *  street-scale detail. */
+const SAT_FREEZE_CAM_ALT_M = 20_000;
+/** Dense Starlink extras are globe-scale context; skip their per-frame
+ *  round-robin when the camera is below regional altitude. */
+const SAT_DENSE_MIN_CAM_ALT_M = 1_000_000;
+
+/** Driver: one frame per cadence step while satellite visuals are on. */
+const _renderDriver = createRenderDriver(
+  'satellites',
+  () => Boolean(_enabled && (_params.showPoints || _params.showOrbits)),
+);
+
 function _preRenderTick() {
   if (!_enabled) return;
   const now = focusNowMs(Date.now());
+
+  // The custom NORAD tracker recomputes the camera target per frame — that is
+  // a real per-frame animation, held for exactly as long as it runs. Applied
+  // from inside the tick so every set/clear site is covered by one seam.
+  if (_trackedNorad !== null) holdContinuousRender('satellites-tracked');
+  else releaseContinuousRender('satellites-tracked');
+
+  const camHeightM = _viewer?.camera?.positionCartographic?.height;
+  const denseWanted = _denseIds.length > 0 && (!Number.isFinite(camHeightM) || camHeightM >= SAT_DENSE_MIN_CAM_ALT_M);
+  _renderDriver.set(denseWanted ? SAT_DENSE_DRIVER_MS : SAT_DRIVER_MS);
+  // Street-level freeze: nothing tracked and the camera is at city scale —
+  // satellite motion is imperceptible there; resume on the next tick above.
+  if (_trackedNorad === null && Number.isFinite(camHeightM) && camHeightM < SAT_FREEZE_CAM_ALT_M) return;
 
   const interval = _trackedNorad ? 200 : POSITION_UPDATE_MS;
   // Space Missions keeps this layer enabled for TLE lookup while deliberately
@@ -1233,7 +1263,7 @@ function _preRenderTick() {
     _lastPropagation = now;
   }
 
-  if (_params.showPoints) _propagateDenseChunk();
+  if (_params.showPoints && denseWanted) _propagateDenseChunk();
 
   // Keep the tracked dot on the per-frame epoch shared with label + camera —
   // runs after _propagateAll so the per-frame sample wins over the 200ms one.
@@ -1569,7 +1599,11 @@ const satellitesLayer = {
 
   enable(viewer) {
     _enabled = true;
-    holdContinuousRender('satellites'); // per-frame animator (perf wave 2)
+    // Tick-driven rendering: fleet propagation runs on a 1 s cadence and the
+    // dense round-robin advances per rendered frame — a 250 ms driver keeps
+    // both progressing without pinning 60 fps. Tracking takes a real hold
+    // inside the tick ('satellites-tracked').
+    _renderDriver.set(SAT_DRIVER_MS);
     if (_pointCollection) _pointCollection.show = satelliteVisualsVisible(_enabled, _params.showPoints);
     // Orbit ring primitives + persistent ISS host label — show them
     for (const path of _orbitPaths.values()) path.primitive.show = satelliteVisualsVisible(_enabled, _params.showOrbits);
@@ -1592,7 +1626,8 @@ const satellitesLayer = {
     _abortActiveUpdates();
     _cancelPendingTrackingRestore();
     _enabled = false;
-    releaseContinuousRender('satellites');
+    _renderDriver.stop();
+    releaseContinuousRender('satellites-tracked');
     if (_pointCollection) _pointCollection.show = false;
     for (const path of _orbitPaths.values()) path.primitive.show = false;
     _clearTracking();
@@ -1777,7 +1812,8 @@ const satellitesLayer = {
 
   destroy(viewer) {
     _abortActiveUpdates();
-    releaseContinuousRender('satellites'); // direct-destroy path (perf wave 2 fix)
+    _renderDriver.stop(); // direct-destroy path (perf wave 2 fix)
+    releaseContinuousRender('satellites-tracked');
     _enabled = false;
     _clearTracking();
     _cancelPendingTrackingRestore();

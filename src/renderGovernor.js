@@ -116,6 +116,50 @@ export function governorRequestRender(reason = 'unspecified') {
 }
 
 /**
+ * Interval-driven frame requests for a layer whose scene work advances on an
+ * internal cadence (fleet dead-reckon ticks, visibility walks, propagation
+ * steps) rather than genuinely per frame. Replaces a permanent
+ * continuous-render hold: the driver guarantees one rendered frame per
+ * interval so the layer's preRender tick keeps running in idle mode, while
+ * camera input, tracking holds, and real per-frame animators still produce
+ * full-rate frames when active. Between ticks the layer's scene is static,
+ * so the skipped frames were identical repaints.
+ *
+ * `needsFrame` (optional) is consulted before each request so a layer that is
+ * enabled but visually dormant (hidden collection, empty population) costs
+ * nothing.
+ *
+ * @param {string} ownerId Short stable id, e.g. 'flights'.
+ * @param {(() => boolean)|null} [needsFrame]
+ * @returns {{set: (ms: number) => void, stop: () => void}}
+ */
+export function createRenderDriver(ownerId, needsFrame = null) {
+  let timer = null;
+  let intervalMs = 0;
+  const fire = () => {
+    if (needsFrame && !needsFrame()) return;
+    governorRequestRender(ownerId);
+  };
+  return {
+    /** Start the driver, or retune its cadence. No-op at the current cadence. */
+    set(ms) {
+      if (timer && ms === intervalMs) return;
+      if (timer) clearInterval(timer);
+      intervalMs = ms;
+      timer = ms > 0 ? setInterval(fire, ms) : null;
+      // Node (tests): a live interval must not hold the event loop open.
+      timer?.unref?.();
+      if (timer) fire();
+    },
+    stop() {
+      if (timer) clearInterval(timer);
+      timer = null;
+      intervalMs = 0;
+    },
+  };
+}
+
+/**
  * @returns {{installed: boolean, mode: 'continuous'|'idle', holds: string[],
  *   recentRequests: Array<{reason: string, at: number}>}}
  */

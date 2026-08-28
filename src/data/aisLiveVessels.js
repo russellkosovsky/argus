@@ -44,7 +44,7 @@ import {
   getFocusTarget,
 } from './focusDeemphasis.js';
 import { requestWorldFocus } from '../worldFocus.js';
-import { holdContinuousRender, releaseContinuousRender } from '../renderGovernor.js';
+import { holdContinuousRender, releaseContinuousRender, createRenderDriver } from '../renderGovernor.js';
 
 const FOCUS_EVIDENCE_DEV = import.meta.env?.DEV === true;
 
@@ -356,7 +356,10 @@ const aisLiveVesselsLayer = {
     const wasEnabled = state.enabled;
     state.enabled = true;
     if (!wasEnabled) beginAisSession();
-    holdContinuousRender('ais-vessels'); // per-frame animator (perf wave 2)
+    // Tick-driven rendering: vessels mutate the scene on the 800 ms
+    // visibility walk, not per frame — one requested frame per walk. The
+    // short-lived focus fade takes a real hold below ('ais-focus').
+    _renderDriver.set(VISIBILITY_UPDATE_MS);
     const activeViewer = viewer || state.viewer;
     ensureCollections(activeViewer);
     installInteraction(activeViewer);
@@ -384,7 +387,8 @@ const aisLiveVesselsLayer = {
   disable() {
     state.enabled = false;
     invalidateAisSession();
-    releaseContinuousRender('ais-vessels');
+    _renderDriver.stop();
+    releaseContinuousRender('ais-focus');
     unregisterPickOwner('ais-live-vessels');
     setVisible(false);
     _vesselOverlayHost.clearSource(VESSEL_OVERLAY_SOURCE_ID);
@@ -406,7 +410,8 @@ const aisLiveVesselsLayer = {
 
   destroy(viewer) {
     invalidateAisSession();
-    releaseContinuousRender('ais-vessels'); // direct-destroy path (perf wave 2 fix)
+    _renderDriver.stop(); // direct-destroy path (perf wave 2 fix)
+    releaseContinuousRender('ais-focus');
     if (state.abort) state.abort.abort();
     unregisterPickOwner('ais-live-vessels');
     clearVesselInspection();
@@ -1219,10 +1224,20 @@ function installRuntime(viewer) {
   state.preRenderRemover = viewer.scene.preRender.addEventListener(() => updateVisibility());
 }
 
+/** Driver: one frame per visibility walk while vessels exist. */
+const _renderDriver = createRenderDriver(
+  'ais-vessels',
+  () => Boolean(state.enabled && state.vesselRecords.length),
+);
+
 function updateVisibility(force = false) {
   if (!state.enabled) return;
   const now = focusNowMs(performance.now());
   const focusTarget = getFocusTarget();
+  // The focus de-emphasis fade is the one genuinely per-frame animation here:
+  // hold continuous render exactly while it needs its 80 ms passes.
+  if (focusPassIsNeeded(focusTarget, state.activeFocusCount)) holdContinuousRender('ais-focus');
+  else releaseContinuousRender('ais-focus');
   const regularPass = force || now - state.lastVisibilityUpdate >= VISIBILITY_UPDATE_MS;
   const focusPass = focusPassIsNeeded(focusTarget, state.activeFocusCount)
     && (force || now - state.lastFocusUpdate >= FOCUS_UPDATE_MS);

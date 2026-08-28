@@ -60,7 +60,7 @@ import {
   selectTrackedSubjectContext,
 } from './contextStore.js';
 import { CONTACT_MATCH_TIER, contactMatchWins, rankContactMatch } from './contactMatch.js';
-import { holdContinuousRender, releaseContinuousRender } from '../renderGovernor.js';
+import { createRenderDriver } from '../renderGovernor.js';
 
 /**
  * @module militaryFlights
@@ -1800,11 +1800,24 @@ function _updateTrackedModel() {
  * degraded by other layers mutating camera.percentageChanged.
  * @returns {void}
  */
+/** One requested frame per fleet tick while enabled; nothing when dormant. */
+const _renderDriver = createRenderDriver(
+  'military',
+  () => Boolean(_billboardCollection?.show && _billboards.size),
+);
+/** Above the recession blend end, per-tick motion is sub-pixel — drive slower. */
+const FLEET_DR_GLOBE_INTERVAL_MS = 250;
+const FLEET_DR_GLOBE_ALT_M = 4_500_000;
+
 function _fleetTick() {
   if (!_viewer || !_billboardCollection || !_billboardCollection.show) return;
   const scene = _viewer.scene;
   const camera = _viewer.camera;
   const nowMs = focusNowMs(Date.now());
+  const camHeightM = camera.positionCartographic?.height;
+  if (Number.isFinite(camHeightM)) {
+    _renderDriver.set(camHeightM > FLEET_DR_GLOBE_ALT_M ? FLEET_DR_GLOBE_INTERVAL_MS : FLEET_DR_INTERVAL_MS);
+  }
 
   // (The tracked trail head is now the per-frame _trailHeadEntity segment — no 1 Hz
   // primitive rebuild here. The body rebuilds only when a real fix arrives.)
@@ -2668,7 +2681,9 @@ const militaryFlightsLayer = {
    */
   enable(viewer) {
     if (_billboardCollection) _billboardCollection.show = true;
-    holdContinuousRender('military'); // per-frame animator (perf wave 2)
+    // Tick-driven rendering — one requested frame per 80 ms fleet tick (see
+    // flights.js for the rationale); camera/tracking holds cover full rate.
+    _renderDriver.set(FLEET_DR_INTERVAL_MS);
     if (_modelCollection) _modelCollection.show = true;
     _setCockpitContactMode(document.body.classList.contains('cockpit-mode'));
     // Height-datum fix: warm the geoid grid once per layer-enable. The poll loop
@@ -2714,7 +2729,7 @@ const militaryFlightsLayer = {
     _abortActiveUpdates();
     _cancelPendingTrackingRestore();
     if (_billboardCollection) _billboardCollection.show = false;
-    releaseContinuousRender('military');
+    _renderDriver.stop();
     _releaseModels();
     if (_modelCollection) _modelCollection.show = false;
     _clearTracking();
@@ -3245,7 +3260,7 @@ const militaryFlightsLayer = {
    */
   destroy(viewer) {
     _abortActiveUpdates();
-    releaseContinuousRender('military'); // direct-destroy path (perf wave 2 fix)
+    _renderDriver.stop(); // direct-destroy path (perf wave 2 fix)
     _clearTracking();
     _destroyTrail();
     _cancelPendingTrackingRestore();

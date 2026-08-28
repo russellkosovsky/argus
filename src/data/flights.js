@@ -93,7 +93,7 @@ import {
   selectTrackedSubjectContext,
 } from './contextStore.js';
 import { CONTACT_MATCH_TIER, contactMatchWins, rankContactMatch } from './contactMatch.js';
-import { holdContinuousRender, releaseContinuousRender } from '../renderGovernor.js';
+import { createRenderDriver } from '../renderGovernor.js';
 
 const FOCUS_EVIDENCE_DEV = import.meta.env?.DEV === true;
 
@@ -2616,11 +2616,24 @@ function _updateTrackedModel() {
   }
 }
 
+/** One requested frame per fleet tick while enabled; nothing when dormant. */
+const _renderDriver = createRenderDriver(
+  'flights',
+  () => Boolean(_billboardCollection?.show && _billboards.size),
+);
+/** Above the recession blend end, per-tick motion is sub-pixel — drive slower. */
+const FLEET_DR_GLOBE_INTERVAL_MS = 250;
+const FLEET_DR_GLOBE_ALT_M = 4_500_000;
+
 function _fleetTick() {
   if (!_viewer || !_billboardCollection || !_billboardCollection.show) return;
   const scene = _viewer.scene;
   const camera = _viewer.camera;
   const nowMs = focusNowMs(Date.now());
+  const camHeightM = camera.positionCartographic?.height;
+  if (Number.isFinite(camHeightM)) {
+    _renderDriver.set(camHeightM > FLEET_DR_GLOBE_ALT_M ? FLEET_DR_GLOBE_INTERVAL_MS : FLEET_DR_INTERVAL_MS);
+  }
 
   // (The tracked trail head is now the per-frame _trailHeadEntity segment — no 1 Hz
   // primitive rebuild needed here anymore.)
@@ -3969,7 +3982,11 @@ const flightsLayer = {
    */
   enable(viewer) {
     if (_billboardCollection) _billboardCollection.show = true;
-    holdContinuousRender('flights'); // per-frame animator (perf wave 2)
+    // Tick-driven rendering: the fleet only mutates the scene on the 80 ms
+    // dead-reckon tick, so a permanent continuous-render hold rendered
+    // identical frames between ticks. The driver requests exactly one frame
+    // per tick; camera input and tracking holds still give full rate.
+    _renderDriver.set(FLEET_DR_INTERVAL_MS);
     if (_modelCollection) _modelCollection.show = true;
     _setCockpitContactMode(document.body.classList.contains('cockpit-mode'));
     // Height-datum fix: warm the geoid grid once per layer-enable. The poll loop
@@ -4017,7 +4034,7 @@ const flightsLayer = {
     _abortActiveUpdates();
     _cancelPendingTrackingRestore();
     if (_billboardCollection) _billboardCollection.show = false;
-    releaseContinuousRender('flights');
+    _renderDriver.stop();
     _releaseModels();
     if (_modelCollection) _modelCollection.show = false;
     _clearTracking();
@@ -4642,7 +4659,7 @@ const flightsLayer = {
    */
   destroy(viewer) {
     _abortActiveUpdates();
-    releaseContinuousRender('flights'); // direct-destroy path (perf wave 2 fix)
+    _renderDriver.stop(); // direct-destroy path (perf wave 2 fix)
     _clearTracking();
     _destroyTrail();
     _cancelPendingTrackingRestore();

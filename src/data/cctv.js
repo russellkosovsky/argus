@@ -4252,6 +4252,9 @@ const cctvLayer = {
         // EllipsoidalOccluder pattern), not by the depth test.
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         scaleByDistance: new Cesium.NearFarScalar(350, 1.25, 4_000_000, 0.42),
+        // CCTV is a city-scale layer: beyond ~3,000 km the icons are
+        // unreadable clutter over three metro areas — drop them entirely.
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 3_000_000),
       });
 
       const record = {

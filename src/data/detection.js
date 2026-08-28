@@ -725,9 +725,11 @@ function _collectDetectableObjects() {
     const layer = _layers[i];
     if (typeof layer.getDetectableObjects !== 'function') continue;
     try {
-      const maxCount = ['flights', 'military'].includes(layer.id)
-        ? Number.POSITIVE_INFINITY
-        : LAYER_CANDIDATE_CAP;
+      // Fleet layers were deliberately uncapped for full coverage, but at
+      // globe view that feeds every aircraft on Earth into the per-paint
+      // projection loop — the single largest frame-cost in the perf baseline.
+      // The shared cap is far above any regional viewport population.
+      const maxCount = LAYER_CANDIDATE_CAP;
       const items = layer.getDetectableObjects({
         mode: label,
         maxCount,

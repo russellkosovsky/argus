@@ -425,21 +425,26 @@ test('the render-governor gate covers the parked case, with teeth on the painter
 // That is a COUPLING, so it deserves a pin. If a later perf pass strips these
 // holds the way it stripped detection's — a reasonable-looking change — bracket
 // promptness goes with them, silently. This test is where that shows up.
-test('aircraft brackets stay prompt because the aircraft layers hold the render loop', async () => {
+test('aircraft brackets stay prompt because the aircraft layers drive the render loop', async () => {
   for (const file of ['./flights.js', './militaryFlights.js']) {
     const source = await readFile(new URL(file, import.meta.url), 'utf8');
     const enable = /\n  enable\([\s\S]*?\n  \},/.exec(source)?.[0];
     assert.ok(enable, `${file}: enable() is still identifiable`);
     assert.match(
       enable,
-      /holdContinuousRender\('(flights|military)'\)/,
-      `${file}: enabling the layer must hold continuous render — detection no longer ` +
-      'holds one, so this is what keeps its AIR brackets repainting on a parked scene',
+      /_renderDriver\.set\(FLEET_DR_INTERVAL_MS\)/,
+      `${file}: enabling the layer must start its render driver — detection holds ` +
+      'nothing, so this is what keeps its AIR brackets repainting on a parked scene',
     );
     assert.match(
       source,
-      /releaseContinuousRender\('(flights|military)'\)/,
-      `${file}: and the hold must be released, or the governor can never idle`,
+      /createRenderDriver\(\s*'(flights|military)'/,
+      `${file}: the driver must be governor-owned so its frames route through requestRender`,
+    );
+    assert.match(
+      source,
+      /_renderDriver\.stop\(\)/,
+      `${file}: and the driver must be stopped on disable, or the governor can never idle`,
     );
   }
 });

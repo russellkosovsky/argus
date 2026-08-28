@@ -10,7 +10,7 @@ import {
   setOverlayEntries,
   setOverlaySourceVisible,
 } from '../overlays/worldOverlay.js';
-import { holdContinuousRender, releaseContinuousRender } from '../renderGovernor.js';
+import { holdContinuousRender, releaseContinuousRender, createRenderDriver } from '../renderGovernor.js';
 
 const WINDOW_DAYS = 30;
 const API_URL = '/api/launches';
@@ -2708,11 +2708,23 @@ function setGraphicVisibility(graphic, visible, time) {
   if (current !== next) graphic.show = next;
 }
 
+/** Driver cadence for the declutter/telemetry walk while enabled. */
+const ROCKET_DRIVER_MS = 250;
+/** Driver: one frame per cadence step while the mission surface is visible. */
+const _renderDriver = createRenderDriver(
+  'rocket-launches',
+  () => Boolean(_enabled && _dataSource?.show),
+);
+
 function updateMissionFrame() {
   if (!_enabled || !_viewer || !_dataSource?.show) {
     hideReplayVehicleOverlay();
     return;
   }
+  // Ascent replay owns the camera and animates per frame — a real hold for
+  // exactly that window, applied from the one seam every frame passes.
+  if (_replayCameraRemover) holdContinuousRender('rocket-replay');
+  else releaseContinuousRender('rocket-replay');
   updateMissionTelemetry();
   const time = Cesium.JulianDate.now(_declutterTime);
   _declutterOccluder.cameraPosition = _viewer.scene.camera.positionWC;
@@ -3450,7 +3462,10 @@ const rocketLaunchesLayer = {
 
   async enable() {
     _enabled = true;
-    holdContinuousRender('rocket-launches'); // per-frame animator (perf wave 2)
+    // Tick-driven rendering: the mission frame walk is declutter, not
+    // animation — 250 ms is plenty. Replay takes a real hold inside
+    // updateMissionFrame ('rocket-replay') while it owns the camera.
+    _renderDriver.set(ROCKET_DRIVER_MS);
     _lifecycleToken++;
     _postTleRetryCount = 0;
     try {
@@ -3479,7 +3494,8 @@ const rocketLaunchesLayer = {
   },
   async disable() {
     _enabled = false;
-    releaseContinuousRender('rocket-launches');
+    _renderDriver.stop();
+    releaseContinuousRender('rocket-replay');
     _lifecycleToken++;
     _updateDirty = false;
     clearPostTleRetry();
@@ -3509,7 +3525,8 @@ const rocketLaunchesLayer = {
   },
 
   async destroy(viewer) {
-    releaseContinuousRender('rocket-launches'); // direct-destroy path (perf wave 2 fix)
+    _renderDriver.stop(); // direct-destroy path (perf wave 2 fix)
+    releaseContinuousRender('rocket-replay');
     _enabled = false;
     _lifecycleToken++;
     _updateDirty = false;
