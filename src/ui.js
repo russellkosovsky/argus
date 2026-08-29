@@ -453,7 +453,7 @@ const SHARPEN_SHADER = /* glsl */ `
 `;
 
 /**
- * Central UI orchestrator for the God's Eye View application.
+ * Central UI orchestrator for the Argus application.
  *
  * Responsibilities:
  * - CesiumJS PostProcessStage pipeline: registers per-style GLSL stages
@@ -2649,6 +2649,22 @@ export class StyleManager {
       this._scheduleLeftPanelLayout({ reconsiderAutoCollapse: true });
     };
     window.addEventListener('resize', this._windowResizeHandler);
+    // The HUD announces its opacity-only show/hide (see IntelHUD
+    // _announceVisibility): both lanes must re-run their obstacle pass at that
+    // moment, or panels keep the corridor computed against the hidden HUD.
+    // The pass runs TWICE: the obstacle sweep skips zero-opacity elements, so
+    // a single immediate pass races the HUD's opacity fade and still sees it
+    // hidden — the second pass lands after the fade settles.
+    this._hudVisibilityHandler = () => {
+      const relayout = () => {
+        this._scheduleLeftPanelLayout({ reconsiderAutoCollapse: true });
+        this._scheduleRightPanelLayout({ reconsiderAutoCollapse: true });
+      };
+      relayout();
+      clearTimeout(this._hudVisibilityRelayoutTimer);
+      this._hudVisibilityRelayoutTimer = setTimeout(relayout, 420);
+    };
+    window.addEventListener('gev:hud-visibility', this._hudVisibilityHandler);
     // The loading-chip ticker is stopped while the tab is hidden (it can do no
     // useful work off-screen and must not hold a 60ms timer there). Resample on
     // return so the time-driven reducer catches up on real elapsed time — and
@@ -9955,6 +9971,8 @@ export class StyleManager {
     this._draggableResizeObserver = null;
     if (this._windowResizeHandler) {
       window.removeEventListener('resize', this._windowResizeHandler);
+      window.removeEventListener('gev:hud-visibility', this._hudVisibilityHandler);
+      clearTimeout(this._hudVisibilityRelayoutTimer);
       this._windowResizeHandler = null;
     }
     if (this._loadingVisibilityHandler) {

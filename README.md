@@ -1,8 +1,8 @@
-# God's Eye View
+# Argus
 
 A real-time geospatial intelligence console that runs in the browser: a photorealistic 3D globe rendering live public data feeds — aircraft, ships, satellites, earthquakes, traffic, and public cameras — on top of Google Photorealistic 3D Tiles.
 
-This is a fork of [God&#39;s Eye View](https://github.com/bilawalsidhu/gods-eye-view) by Bilawal Sidhu. It differs from the upstream project in two deliberate ways:
+Argus is a fork of [God&#39;s Eye View](https://github.com/bilawalsidhu/gods-eye-view) by Bilawal Sidhu, renamed and visually redesigned. It differs from the upstream project in two further deliberate ways:
 
 - **The voice-control / OpenAI subsystem is removed entirely.** No OpenAI key is used or supported; the app has no AI runtime dependency.
 - **Rendering defaults are tuned for modest hardware** (MSAA off, coarser 3D-tile LOD cutoff).
@@ -29,7 +29,7 @@ The live layers are grounded in public feeds: an aircraft on screen is reporting
 
 ## Data layers
 
-Thirteen live layers. Ten require no key, account, or signup.
+Fourteen live layers. Eleven require no key, account, or signup.
 
 | Layer                | Description                                                                                                                               | Source                    | Key                                                        |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------- |
@@ -46,8 +46,9 @@ Thirteen live layers. Ten require no key, account, or signup.
 | Active fires         | Live NASA FIRMS detections, trailing 24 h                                                                                                 | NASA FIRMS                | Free key                                                   |
 | Space missions       | Rolling 30-day launches with payload, stage, and recovery detail; scrubbable ascent replay                                                | Launch Library 2          | None (optional token raises allowance)                     |
 | Mapped installations | Viewport-bounded military-site context from community mapping; incomplete by nature and labeled as such                                   | OpenStreetMap             | None                                                       |
+| ALPR cameras         | All ~147.7K community-mapped license-plate readers (DeFlock/OSM) as a globe-scale point field, refreshed live per-viewport when zoomed in   | OpenStreetMap             | None                                                       |
 
-Bundled static datasets: datacenters (4,351), dams (704), and submarine cables (712), with per-folder provenance in `src/data/local_data/`.
+Bundled static datasets: ALPR cameras (147,674), datacenters (4,351), dams (704), and submarine cables (712), with per-folder provenance in `src/data/local_data/`.
 
 ## Requirements
 
@@ -147,7 +148,7 @@ By default the server binds to localhost and nobody else can reach it. To share 
 This project runs on public data, clear sources, and local-first execution. It models events, assets, infrastructure, and systems — aircraft, vessels, satellites, fires, cameras, cities. It does not build features for named-person search, face recognition, or tracking individuals, and pull requests that cross that line won't be merged.
 
 > [!IMPORTANT]
-> God's Eye View is an exploratory visualization of public and third-party data.
+> Argus is an exploratory visualization of public and third-party data.
 > Data may be delayed, incomplete, modeled, inferred, or wrong. Do not use it
 > for flight or maritime navigation, emergency response, medical or health
 > decisions, investment decisions, or other safety-critical or operational

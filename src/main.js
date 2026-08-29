@@ -13,6 +13,7 @@ import radioLayer from './data/radio.js';
 import bikeshareLayer from './data/bikeshare.js';
 import aisLiveVesselsLayer from './data/aisLiveVessels.js';
 import militaryInstallationsLayer from './data/militaryInstallations.js';
+import alprLayer from './data/alpr.js';
 import militaryAwarenessLayer from './data/militaryAwareness.js';
 import localDataLayers from './data/localLayers.js';
 import { LAYER_STATE_REGISTRY } from './data/layerState.js';
@@ -56,7 +57,7 @@ function describeError(error) {
 }
 
 /**
- * GOD'S EYE VIEW — Main Entry Point
+ * ARGUS — Main Entry Point
  * Initializes CesiumJS with Google Photorealistic 3D Tiles,
  * style system, intelligence HUD, location presets, and share links.
  */
@@ -218,6 +219,7 @@ async function init() {
     rocketLaunchesLayer.attachDataManager(dataManager);
     dataManager.register(trafficLayer);
     dataManager.register(cctvLayer);
+    dataManager.register(alprLayer);
     dataManager.register(radioLayer);
     dataManager.register(bikeshareLayer);
     dataManager.register(aisLiveVesselsLayer);
@@ -304,7 +306,7 @@ async function init() {
     };
 
   } catch (error) {
-    console.error("God's Eye View initialization failed:", error);
+    console.error("Argus initialization failed:", error);
     loaderStatus.textContent = `Error: ${describeError(error)}`;
     loaderStatus.style.color = '#ff4444';
   }

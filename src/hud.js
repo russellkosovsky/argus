@@ -23,7 +23,9 @@ import { ellipsoidalToMslDisplayM, ensureGeoidReady, geoidHeight } from './data/
 const HUD_COLORS = {
   surveillance: { main: 'rgba(51, 255, 51, 0.8)',  glow: 'rgba(51, 255, 51, 0.5)',  border: 'rgba(51, 255, 51, 0.2)' },
   thermal:      { main: 'rgba(255, 255, 255, 0.7)', glow: 'rgba(255, 255, 255, 0.4)', border: 'rgba(255, 255, 255, 0.15)' },
-  _default:     { main: 'rgba(0, 255, 255, 0.6)',   glow: 'rgba(0, 255, 255, 0.4)',   border: 'rgba(0, 255, 255, 0.15)' },
+  // ARGUS graphite/amber theme: the normal-style HUD reads in the signal
+  // amber; surveillance (NVG green) and thermal (white) stay sensor-true.
+  _default:     { main: 'rgba(240, 166, 60, 0.72)', glow: 'rgba(240, 166, 60, 0.32)', border: 'rgba(240, 166, 60, 0.16)' },
 };
 
 /** Shader modes that automatically show the HUD overlay. */
@@ -629,12 +631,27 @@ export class IntelHUD {
     this._updateCameraData(); // immediate update
     this._markSummaryDirty();
     this._updateSummary(false, true);
+    this._announceVisibility();
   }
 
   /** Hide the HUD overlay. */
   hide() {
     this._visible = false;
     if (this._el) this._el.classList.remove('active');
+    this._announceVisibility();
+  }
+
+  /**
+   * The HUD reveals with an opacity-only flip, so the panel lanes' obstacle
+   * ResizeObservers never fire on it — without this announcement the corridor
+   * math keeps running against the pre-flip state and the summary/MGRS blocks
+   * can render through the Data Layers panel (field report 2026-08-29).
+   */
+  _announceVisibility() {
+    if (typeof window === 'undefined' || typeof window.CustomEvent !== 'function') return;
+    window.dispatchEvent(new window.CustomEvent('gev:hud-visibility', {
+      detail: { visible: this._visible },
+    }));
   }
 
   /** Toggle HUD visibility and disable auto-mode (user override). */

@@ -81,6 +81,15 @@ export const DATA_CREDITS = [
       '(ODbL 1.0; incomplete mapped context)',
   },
   {
+    key: 'alpr-osm',
+    html:
+      'ALPR cameras (bundled snapshot + live viewport refresh): ' +
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a> ' +
+      '(ODbL 1.0), mapped by the ' +
+      '<a href="https://deflock.org" target="_blank" rel="noopener">DeFlock</a> community ' +
+      '(incomplete mapped context)',
+  },
+  {
     key: 'cockpit-place-osm',
     html:
       'Cockpit place context: ' +

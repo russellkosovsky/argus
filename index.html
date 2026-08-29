@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>God's Eye View</title>
+  <title>Argus</title>
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
 </head>
@@ -25,8 +25,8 @@
   <!-- Title -->
   <div id="title-bar">
     <div class="title-glow"></div>
-    <h1><span class="title-logo brand-logo" aria-hidden="true"><img src="/logo.svg" alt="" /></span> <span>GOD'S EYE <span class="title-accent">VIEW</span></span></h1>
-    <p class="subtitle">NO PLACE LEFT BEHIND</p>
+    <h1><span class="title-logo brand-logo" aria-hidden="true"><img src="/logo.svg" alt="" /></span> <span>ARGUS</span></h1>
+    <p class="subtitle">PLANETARY OBSERVATION</p>
   </div>
 
   <!-- Style indicator -->
@@ -601,6 +601,10 @@
       <div id="cctv-summary">Enable CCTV to start camera-linked intelligence summaries.</div>
     </div>
   </div>
+  </div><!-- /#left-panel-stack — without this close the right rail and the
+       Intel HUD parse as stack CHILDREN, and the panel lanes' obstacle sweep
+       skips its own descendants: the root cause of the chronic HUD-over-panel
+       overlap (diagnosed 2026-08-29). -->
 
   <!-- Global Context is deliberately independent from the left layer accordion. -->
   <aside id="right-context-rail">
@@ -755,7 +759,7 @@
   <div id="loading-screen">
     <div class="loader-content">
       <span class="loader-logo brand-logo" aria-hidden="true"><img src="/logo.svg" alt="" /></span>
-      <h2>GOD'S EYE <span class="title-accent">VIEW</span></h2>
+      <h2>ARGUS</h2>
       <p class="loader-status">Initializing photorealistic world...</p>
     </div>
   </div>

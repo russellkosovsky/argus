@@ -368,7 +368,7 @@ test('detection lifecycle re-hosts unchanged painters behind the sole host liste
     assert.equal(surface.style.mixBlendMode, 'screen');
     assert.equal(
       surface.style.filter,
-      'contrast(1.05) saturate(1.05) drop-shadow(0 0 3px rgba(0, 244, 255, 0.4))',
+      'contrast(1.05) saturate(1.05) drop-shadow(0 0 3px rgba(240, 166, 60, 0.4))',
     );
     assert.equal(surface.style.display, 'none');
 
@@ -461,7 +461,7 @@ test('detection lifecycle re-hosts unchanged painters behind the sole host liste
     assert.equal(surface.style.mixBlendMode, 'screen');
     assert.equal(
       surface.style.filter,
-      'contrast(1.05) saturate(1.05) drop-shadow(0 0 3px rgba(0, 244, 255, 0.4))',
+      'contrast(1.05) saturate(1.05) drop-shadow(0 0 3px rgba(240, 166, 60, 0.4))',
     );
     env.postRender.raise();
     assert.equal(getMode(), 'OFF');

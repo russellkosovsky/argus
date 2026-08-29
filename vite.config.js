@@ -1,5 +1,5 @@
 /**
- * Vite configuration for God's Eye View — a cinematic geospatial app.
+ * Vite configuration for Argus — a cinematic geospatial app.
  *
  * Registers the dev-server proxy middlewares that bypass CORS and add
  * caching/auth for upstream APIs:
@@ -458,6 +458,7 @@ function makeRateLimiter({ windowMs, max, globalMax }) {
 }
 const _overpassRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 90, globalMax: 300 });
 const _militaryInstallationsRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 90, globalMax: 300 });
+const _alprRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 90, globalMax: 300 });
 const _routeRateLimiter = makeRateLimiter({ windowMs: 60_000, max: 60, globalMax: 200 });
 
 /**
@@ -776,7 +777,7 @@ const RADIO_RESPONSE_MAX_BYTES = 4 * 1024 * 1024;
 const RADIO_DIRECTORY_LIMIT = 750;
 const RADIO_CATALOG_MIN_SUCCESSFUL_QUERIES = 5;
 const RADIO_CATALOG_HEALTHY_MIN_STATIONS = Math.ceil(RADIO_DIRECTORY_LIMIT / 2);
-const RADIO_USER_AGENT = 'GodsEyeView/1.0 (Radio Browser directory client)';
+const RADIO_USER_AGENT = 'Argus/1.0 (Radio Browser directory client)';
 const RADIO_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const RADIO_FALLBACK_MIRRORS = Object.freeze([
   'https://de1.api.radio-browser.info',
@@ -1546,7 +1547,7 @@ function celestrakProxy() {
       signal: AbortSignal.timeout(20000),
       // CelesTrak 403s bulk groups (e.g. `active`) unless the request carries a
       // descriptive User-Agent with a contact point.
-      headers: { 'User-Agent': 'gods-eye-view-celestrak-proxy/1.0 (+https://github.com/bilawalsidhu/gods-eye-view)' },
+      headers: { 'User-Agent': 'argus-celestrak-proxy/1.0 (+https://github.com/bilawalsidhu/gods-eye-view)' },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = await res.text();
@@ -2526,7 +2527,7 @@ function sendOverpassResponse(res, payload, cacheStatus = 'MISS') {
  * @param {number} [maxResponseBytes] Endpoint-specific response cap.
  * @returns {Promise<{status:number,body:string,contentType:string,endpoint:string,rateLimited:boolean}>}
  */
-async function fetchOverpassPayload(body, maxResponseBytes = OVERPASS_MAX_RESPONSE_BYTES) {
+async function fetchOverpassPayload(body, maxResponseBytes = OVERPASS_MAX_RESPONSE_BYTES, { slowQueryClass = false } = {}) {
   let lastError = null;
   let lastRateLimitPayload = null;
 
@@ -2534,14 +2535,17 @@ async function fetchOverpassPayload(body, maxResponseBytes = OVERPASS_MAX_RESPON
   // healthy mirrors); everything else fails over fast. Either way an overall
   // deadline bounds the whole mirror walk, so four dead mirrors cannot stack
   // their timeouts sequentially. The body is form-encoded — classify the
-  // decoded QL, matching what the cache-key classifier sees.
+  // decoded QL, matching what the cache-key classifier sees. A caller that
+  // KNOWS its query is legitimately slow on healthy mirrors (dense-tag scans
+  // like the ALPR proxy: 3-15 s measured 2026-08-29) opts into the same long
+  // budget via `slowQueryClass` instead of masquerading as a boundary query.
   const decodedQl = (() => {
     try { return new URLSearchParams(body).get('data') || ''; } catch { return ''; }
   })();
-  const boundary = isOverpassBoundaryQuery(decodedQl);
-  const perMirrorMs = boundary ? OVERPASS_BOUNDARY_TIMEOUT_MS : OVERPASS_TIMEOUT_MS;
+  const slow = slowQueryClass || isOverpassBoundaryQuery(decodedQl);
+  const perMirrorMs = slow ? OVERPASS_BOUNDARY_TIMEOUT_MS : OVERPASS_TIMEOUT_MS;
   const deadlineAt = Date.now()
-    + (boundary ? OVERPASS_BOUNDARY_TOTAL_BUDGET_MS : OVERPASS_TOTAL_BUDGET_MS);
+    + (slow ? OVERPASS_BOUNDARY_TOTAL_BUDGET_MS : OVERPASS_TOTAL_BUDGET_MS);
 
   for (const endpoint of overpassUpstreams()) {
     const remainingMs = deadlineAt - Date.now();
@@ -2554,7 +2558,7 @@ async function fetchOverpassPayload(body, maxResponseBytes = OVERPASS_MAX_RESPON
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'gods-eye-view-overpass-proxy/1.0',
+          'User-Agent': 'argus-overpass-proxy/1.0',
         },
         body,
         signal: controller.signal,
@@ -2797,7 +2801,7 @@ function overpassProxy() {
           try {
             const upstreamRes = await fetch(upstream, {
               signal: controller.signal,
-              headers: { 'User-Agent': 'gods-eye-view/dev (local)' },
+              headers: { 'User-Agent': 'argus/dev (local)' },
             });
             if (!upstreamRes.ok) return fail('no route found');
             const ctype = upstreamRes.headers.get('content-type') || '';
@@ -2859,7 +2863,7 @@ async function fetchAdsbLolPointFallback(req) {
         {
           headers: {
             Accept: 'application/json',
-            'User-Agent': 'gods-eye-view-adsblol-regional-fallback/1.0',
+            'User-Agent': 'argus-adsblol-regional-fallback/1.0',
           },
           signal: controller.signal,
         },
@@ -3339,7 +3343,7 @@ function gbfsProxy() {
               method: 'GET',
               headers: {
                 Accept: 'application/json',
-                'User-Agent': 'gods-eye-view-gbfs-proxy/1.0',
+                'User-Agent': 'argus-gbfs-proxy/1.0',
               },
               signal: controller.signal,
             });
@@ -4415,7 +4419,7 @@ export async function fetchCctvImageFromUpstream(url, {
   }, timeoutMs);
   try {
     const upstream = await fetchImpl(url, {
-      headers: { 'User-Agent': 'gods-eye-view-cctv-proxy/1.0' },
+      headers: { 'User-Agent': 'argus-cctv-proxy/1.0' },
       signal: controller.signal,
     });
     const contentType = upstream.headers.get('content-type') || '';
@@ -4505,7 +4509,7 @@ function cctvProxy() {
       sv.searchParams.set('key', streetViewKey);
 
       const svResp = await fetch(sv.toString(), {
-        headers: { 'User-Agent': 'gods-eye-view-cctv-proxy/1.0' },
+        headers: { 'User-Agent': 'argus-cctv-proxy/1.0' },
         signal: AbortSignal.timeout(CCTV_FRAME_FETCH_TIMEOUT_MS),
       });
       const svType = svResp.headers.get('content-type') || '';
@@ -4592,7 +4596,7 @@ function cctvProxy() {
             }
 
             try {
-              const upstreamHeaders = { 'User-Agent': 'gods-eye-view-cctv-proxy/1.0' };
+              const upstreamHeaders = { 'User-Agent': 'argus-cctv-proxy/1.0' };
               const requestRange = req.headers?.range;
               if (requestRange) upstreamHeaders.Range = requestRange;
               const upstream = await fetch(mediaUrl, {
@@ -4757,7 +4761,7 @@ function adsbLolProxy() {
             return;
           }
           const upstream = await fetch('https://api.adsb.lol/v2/mil', {
-            headers: { 'User-Agent': 'gods-eye-view-adsblol-proxy/1.0' },
+            headers: { 'User-Agent': 'argus-adsblol-proxy/1.0' },
           });
           const body = await upstream.text();
           if (upstream.ok) {
@@ -5871,6 +5875,194 @@ function militaryInstallationsProxy() {
 }
 
 // ---------------------------------------------------------------------------
+// ALPR camera context proxy
+// ---------------------------------------------------------------------------
+// Same narrow-endpoint contract as the installation proxy: only community-
+// mapped ALPR features (man_made=surveillance + surveillance:type=ALPR — the
+// DeFlock tagging schema), viewport-bounded, never arbitrary Overpass QL.
+// The cache mechanics reuse the militaryInstallation* helpers directly — those
+// names are historical; the quantize/key/tier/disk functions are generic and
+// fully parameterized (and migrateMilitaryInstallationEntry inside the disk
+// read is a no-op here because every ALPR payload is written with an explicit
+// `saturated` flag).
+const ALPR_CACHE_MS = 5 * 60_000;
+const ALPR_STALE_MS = 60 * 60_000;
+const ALPR_MAX_CACHE = 80;
+const ALPR_MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+/**
+ * Upstream element cap. Higher than the installation cap because mapped ALPR
+ * density in US metros is far beyond 700 per view; a response that hits it
+ * exactly is SATURATED and the client re-asks for its exact viewport.
+ */
+export const ALPR_ELEMENT_CAP = 2500;
+/** Disk-cache TTL (ms) — 30 days; camera installations change on a survey
+ * timescale, the same reasoning as the installation proxy. */
+const ALPR_DISK_TTL_MS = 30 * 86_400_000;
+/** Disk-cache directory for ALPR payloads. */
+const ALPR_DISK_DIR = path.join(process.cwd(), '.gev-cache', 'alpr');
+/**
+ * Max bbox span (degrees). Much tighter than the 10° installations allow —
+ * this tag is DENSE and public-mirror capacity is shared and flaky. Measured
+ * 2026-08-29 on overpass-api.de: a 4° metro box (Atlanta/DFW/LA) ran 7-20 s
+ * and always saturated the element cap (doubling the cost with the
+ * exact-viewport retry); a 2° Atlanta box still ran ~15 s under load; a 1° box
+ * answers in ~3 s typical / ~8 s on a throttled mirror — comfortably inside
+ * the slow-class per-mirror budget. 1° (~110 km) still frames a city and its
+ * suburbs, and the outward-snapped cache grid accumulates coverage as the
+ * user pans.
+ */
+export const ALPR_MAX_BBOX_DEG = 1;
+const _alprCache = new Map();
+const _alprInFlight = new Map();
+
+export function validAlprBox(params) {
+  const south = requiredFiniteQueryNumber(params, 'south');
+  const west = requiredFiniteQueryNumber(params, 'west');
+  const north = requiredFiniteQueryNumber(params, 'north');
+  const east = requiredFiniteQueryNumber(params, 'east');
+  if (![south, west, north, east].every(Number.isFinite)) return null;
+  if (south < -90 || north > 90 || west < -180 || east > 180 || south >= north || west >= east) return null;
+  if (north - south > ALPR_MAX_BBOX_DEG || east - west > ALPR_MAX_BBOX_DEG) return null;
+  return { south, west, north, east };
+}
+
+function trimAlprCache() {
+  while (_alprCache.size > ALPR_MAX_CACHE) {
+    const oldest = _alprCache.keys().next().value;
+    if (oldest === undefined) break;
+    _alprCache.delete(oldest);
+  }
+}
+
+function alprProxy() {
+  async function refresh(box, key) {
+    const bbox = `${box.south},${box.west},${box.north},${box.east}`;
+    // `out center` = body verbosity (node coords + tags) plus centres for the
+    // rare way/relation-mapped gantry; `qt` keeps a truncated answer spatially
+    // coherent instead of id-ordered scatter.
+    const ql = `[out:json][timeout:20];nwr["man_made"="surveillance"]["surveillance:type"="ALPR"](${bbox});out center qt ${ALPR_ELEMENT_CAP};`;
+    // slowQueryClass: dense-tag scans legitimately take 3-15 s on healthy
+    // mirrors, so the default 8 s per-mirror abort would fail every dense
+    // metro (field report 2026-08-29: "LOAD FAILED" on first enable).
+    const upstream = await fetchOverpassPayload(
+      `data=${encodeURIComponent(ql)}`,
+      ALPR_MAX_RESPONSE_BYTES,
+      { slowQueryClass: true },
+    );
+    if (upstream.status >= 400 || upstream.rateLimited || upstream.runtimeError) {
+      throw new Error('ALPR camera upstream unavailable');
+    }
+    const parsed = JSON.parse(upstream.body);
+    const elements = Array.isArray(parsed?.elements)
+      ? parsed.elements.slice(0, ALPR_ELEMENT_CAP)
+      : [];
+    const payload = {
+      elements,
+      // Honest truncation flag — the client re-asks for its exact viewport so
+      // off-view cameras can never starve in-view ones. The cap travels with
+      // the payload so the client never has to hard-code it.
+      saturated: elements.length >= ALPR_ELEMENT_CAP,
+      elementCap: ALPR_ELEMENT_CAP,
+      retrievedAt: new Date().toISOString(),
+      status: 'ready',
+    };
+    const entry = { payload, cachedAt: Date.now() };
+    _alprCache.set(key, entry);
+    trimAlprCache();
+    writeMilitaryInstallationDisk(key, entry, ALPR_DISK_DIR);
+    return payload;
+  }
+
+  function install(middlewares) {
+    middlewares.use('/api/alpr', async (req, res) => {
+      if (req.method !== 'GET') {
+        res.writeHead(405, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+        return;
+      }
+      if (!_alprRateLimiter(clientKey(req))) {
+        res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '5' });
+        res.end(JSON.stringify({ error: 'Rate limit exceeded' }));
+        return;
+      }
+      const url = new URL(req.url, 'http://localhost');
+      const requested = validAlprBox(url.searchParams);
+      if (!requested) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `A non-dateline bbox no larger than ${ALPR_MAX_BBOX_DEG} degrees is required` }));
+        return;
+      }
+      // Query the SNAPPED box, not the raw viewport, with the same exact=1
+      // saturation escape hatch the installation proxy documents.
+      const exact = url.searchParams.get('exact') === '1';
+      const box = exact ? requested : quantizeMilitaryInstallationBox(requested);
+      const key = exact
+        ? `exact:${militaryInstallationCacheKey(box, 5)}`
+        : militaryInstallationCacheKey(box);
+      const now = Date.now();
+      const cached = _alprCache.get(key);
+      const preflight = await resolveMilitaryInstallationTier({
+        cacheKey: key,
+        memoryCache: _alprCache,
+        inFlight: _alprInFlight,
+        readDisk: () => readMilitaryInstallationDisk(key, ALPR_DISK_TTL_MS, ALPR_DISK_DIR),
+        now,
+        cacheMs: ALPR_CACHE_MS,
+      });
+      if (preflight.source !== 'UPSTREAM') {
+        if (preflight.source === 'DISK') {
+          _alprCache.set(key, preflight.entry);
+          trimAlprCache();
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', 'X-Alpr': preflight.source });
+        res.end(JSON.stringify({ ...preflight.entry.payload, status: 'cached' }));
+        return;
+      }
+      const request = coalesceProxyRequest(
+        _alprInFlight,
+        key,
+        () => refresh(box, key),
+      );
+      try {
+        const payload = await request.promise;
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60',
+          'X-Alpr': request.shared ? 'INFLIGHT' : 'MISS',
+        });
+        res.end(JSON.stringify(payload));
+      } catch (error) {
+        if (cached && now - cached.cachedAt <= ALPR_STALE_MS) {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Alpr': 'STALE' });
+          res.end(JSON.stringify({ ...cached.payload, status: 'stale' }));
+          return;
+        }
+        // Overpass is down: last-good mapped cameras at ANY age beat an empty
+        // layer (the same serve-stale rule the Overpass proxy applies).
+        const stale = await readMilitaryInstallationDisk(key, Infinity, ALPR_DISK_DIR);
+        if (stale) {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Alpr': 'STALE-DISK' });
+          res.end(JSON.stringify({ ...stale.payload, status: 'stale' }));
+          return;
+        }
+        res.writeHead(503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ error: 'ALPR camera context is temporarily unavailable' }));
+      }
+    });
+  }
+
+  return {
+    name: 'alpr-proxy',
+    configureServer(server) {
+      install(server.middlewares);
+    },
+    configurePreviewServer(server) {
+      install(server.middlewares);
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Regional cockpit briefing proxy
 // ---------------------------------------------------------------------------
 const REGIONAL_BRIEF_CACHE_MS = 5 * 60_000;
@@ -6007,7 +6199,7 @@ function fetchRegionalPlace(point) {
     });
     const payload = await fetchRegionalJson(`https://nominatim.openstreetmap.org/reverse?${params}`, {
       headers: {
-        'User-Agent': 'GodsEyeView/0.1 (+https://github.com/bilawalsidhu/gods-eye-view)',
+        'User-Agent': 'Argus/0.1 (+https://github.com/bilawalsidhu/gods-eye-view)',
         Referer: 'https://github.com/bilawalsidhu/gods-eye-view',
       },
     });
@@ -6028,7 +6220,7 @@ async function fetchRegionalNews(place) {
   });
   try {
     const xml = await fetchRegionalText(`https://news.google.com/rss/search?${rssParams}`, {
-      headers: { 'User-Agent': 'GodsEyeView/0.1' },
+      headers: { 'User-Agent': 'Argus/0.1' },
       timeoutMs: 12_000,
     });
     const articles = normalizeRssArticles(xml, 5);
@@ -6044,7 +6236,7 @@ async function fetchRegionalNews(place) {
   });
   try {
     const payload = await fetchRegionalJson(`https://api.gdeltproject.org/api/v2/doc/doc?${params}`, {
-      headers: { 'User-Agent': 'GodsEyeView/0.1' },
+      headers: { 'User-Agent': 'Argus/0.1' },
       timeoutMs: 12_000,
     });
     const articles = normalizeRegionalArticles(payload, 5);
@@ -6326,6 +6518,7 @@ export default defineConfig(({ mode }) => {
       adsbdbProxy(),
       overpassProxy(),
       militaryInstallationsProxy(),
+      alprProxy(),
       regionalBriefProxy(),
       weatherEffectsProxy(),
       cctvProxy(),

@@ -1,4 +1,4 @@
-# God's Eye View Current State
+# Argus Current State
 
 Updated: August 24, 2026
 
@@ -1595,6 +1595,7 @@ its criteria cannot be silently ignored.
 | Military Flights 🎖️ | adsb.lol /v2/mil | `src/data/militaryFlights.js` | `/api/adsblol/mil` | 15s |
 | Live AIS Vessels 🚢 | AISStream websocket | `src/data/aisLiveVessels.js` | `/api/ais-live` | 60s (+800ms visibility pass) |
 | Mapped Installations ⌖ | OpenStreetMap mapped context; on-demand Google Maps Places supplement | `src/data/militaryInstallations.js` | `/api/military-installations`, `/api/google/text-search` | viewport-driven + user search; while unavailable, auto-retry 30 s → 240 s backoff |
+| ALPR Cameras ⛶ | OpenStreetMap community mapping (DeFlock tagging schema: `man_made=surveillance` + `surveillance:type=ALPR`); bundled 147,674-feature worldwide snapshot for the wide-zoom ambient tier (`src/data/local_data/alpr/`) | `src/data/alpr.js` | `/api/alpr` (≤1° viewport, slow-class Overpass budget, 2,500-element cap + exact-viewport saturation retry, 5-min memory / 30-day disk cache) | viewport-driven; wide zoom renders the bundled snapshot (ellipsoid horizon-culled ≤150 ms sweeps, since depth test is disabled); while live is unavailable the snapshot backstops and auto-retry runs 30 s → 240 s backoff |
 | Earthquakes | USGS | `src/data/earthquakes.js` | — | 60s |
 | Satellites | CelesTrak | `src/data/satellites.js` | `/api/celestrak` | 120s |
 | Space Missions (30d) | Launch Library 2 + CelesTrak | `src/data/rocketLaunches.js` | `/api/launches` + `/api/celestrak/active` | 5 min |

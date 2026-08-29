@@ -3,9 +3,43 @@
 This changelog records public product changes. For the authoritative description
 of current runtime behavior, see [`docs/CURRENT-STATE.md`](docs/CURRENT-STATE.md).
 
-## [Unreleased] — 2026-08-24
+## [Unreleased] — 2026-08-29
+
+### Changed
+
+- Rebranded the application to **Argus** (formerly titled after the upstream
+  project it forks): new name, new amber viewfinder mark, and a full visual
+  re-theme — opaque graphite panels, hairline borders, a single amber accent
+  replacing the cyan-glow scheme, tighter radii, and a Space Grotesk wordmark.
+  Programmatic identifiers (`window.__godsEyeView`, `gev:` storage keys,
+  `GEV_*` env vars, `.gev-cache/`) are deliberately unchanged so stored state,
+  configs, and QA tooling keep working; upstream attribution in the README
+  keeps the original project name.
+
+### Fixed
+
+- Fixed the chronic panel/HUD overlap at its root: `#left-panel-stack` was
+  never closed in `index.html`, so the browser parsed the right rail and the
+  Intel HUD as children of the left panel stack — and the panel lanes'
+  obstacle sweep skips its own descendants, blinding it to the exact HUD
+  readouts it exists to avoid. Also hardened the lanes themselves: expanded
+  right-rail panels now compress and scroll inside the corridor instead of
+  painting over their siblings, the HUD's opacity-only reveal now re-runs both
+  lanes' obstacle pass (again after the fade, which the sweep's zero-opacity
+  filter would otherwise race), and the left lane's CSS fallbacks reserve
+  space for the wordmark and the credit line before the JS pass lands.
 
 ### Added
+
+- Added an ALPR Cameras layer: license-plate-reader locations from the DeFlock
+  community's OpenStreetMap mapping (`surveillance:type=ALPR`). At globe zoom
+  it renders the full bundled worldwide snapshot (147,674 features,
+  `src/data/local_data/alpr/`, rebuilt via `scripts/build-alpr-snapshot.mjs`)
+  as a vendor-colored, horizon-culled point field; inside a 1° viewport a new cached
+  `/api/alpr` Overpass proxy takes over live, with cards showing vendor,
+  facing direction, and operator. The snapshot also backstops the map whenever
+  the live tier is unavailable; saturation, staleness, and coverage
+  incompleteness are labeled rather than implied away.
 
 - Added honest aircraft identity narration: callsign, operator, registration,
   type, and route come only from selected-contact context, and missing operator,
